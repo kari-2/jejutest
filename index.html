@@ -1,0 +1,1423 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>수눌음 우영팟 · 시니어 스마트팜</title>
+<style>
+  /* ===========================================================
+     수눌음 우영팟 — 시니어 스마트팜 프로토타입
+     Primary #7FA66A / Secondary #B88A5A / Background #F7F3D8
+     =========================================================== */
+  :root{
+    --primary:#7FA66A; --primary-d:#5E8A4C; --primary-l:#D6E4C6;
+    --secondary:#B88A5A; --secondary-l:#EBD9C2;
+    --bg:#F7F3D8; --ink:#3B4A32; --sub:#7d8a70;
+    --glass:rgba(255,255,255,.30);
+    --glass-b:rgba(255,255,255,.62);
+    --shadow:0 12px 34px rgba(59,74,50,.20);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{width:100%;height:100%;overflow:hidden;}
+  body{
+    font-family:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',system-ui,sans-serif;
+    color:var(--ink); background:#d9d4b6;
+    display:block;
+  }
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;}
+  input,textarea{font-family:inherit;}
+
+  /* ---------- 앱 컨테이너 (모바일 세로 프레임, 최대 430px) ---------- */
+  .app-container{
+    position:relative;
+    width:100%; max-width:430px;
+    height:100vh; height:100dvh;
+    margin:0 auto; overflow:hidden;
+    background:var(--bg); box-shadow:0 0 60px rgba(59,74,50,.28);
+    display:flex; flex-direction:column;
+  }
+
+  /* ---------- 화면 컨테이너 ---------- */
+  #screens{ position:relative; flex:1; overflow:hidden; }
+  /* .screen 은 기본 숨김, .active 만 표시 */
+  .screen{
+    position:absolute; inset:0; overflow-y:auto; overflow-x:hidden;
+    -webkit-overflow-scrolling:touch;
+    padding-bottom:96px;   /* 하단 네비게이션에 콘텐츠가 가리지 않도록 */
+    display:none;
+    animation:screenIn .32s cubic-bezier(.22,1,.36,1);
+  }
+  .screen.active{ display:block; }
+  @keyframes screenIn{ from{opacity:0;transform:translateX(14px);} to{opacity:1;transform:translateX(0);} }
+  .screen::-webkit-scrollbar{ width:0; }
+
+  /* 밝은 세부화면 배경 */
+  .screen.light{ background:linear-gradient(180deg,#FBF8E6,#F2EDCF); }
+
+  /* ===========================================================
+     공통 컴포넌트
+     =========================================================== */
+  .header{
+    position:sticky; top:0; z-index:20;
+    display:flex; align-items:center; gap:12px;
+    padding:calc(env(safe-area-inset-top) + 14px) 16px 12px;
+    background:rgba(247,243,216,.82);
+    -webkit-backdrop-filter:blur(16px); backdrop-filter:blur(16px);
+    border-bottom:1px solid rgba(184,138,90,.18);
+  }
+  .header h1{ font-size:19px; font-weight:800; letter-spacing:-.4px; }
+  .header .sub{ font-size:12px; color:var(--sub); font-weight:600; }
+
+  /* 비눗방울 유리 버튼 (원형) */
+  .bubble{
+    position:relative; flex:none;
+    width:44px; height:44px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:19px;
+    background:
+      radial-gradient(circle at 32% 26%, rgba(255,255,255,.95), rgba(255,255,255,.15) 44%, transparent 62%),
+      radial-gradient(circle at 72% 80%, rgba(127,166,106,.45), rgba(127,166,106,.08) 55%),
+      rgba(255,255,255,.24);
+    -webkit-backdrop-filter:blur(10px) saturate(1.4); backdrop-filter:blur(10px) saturate(1.4);
+    border:1.5px solid rgba(255,255,255,.7);
+    box-shadow:0 8px 20px rgba(59,74,50,.22), inset 0 4px 10px rgba(255,255,255,.7), inset 0 -6px 12px rgba(127,166,106,.25);
+    transition:transform .18s ease;
+  }
+  .bubble::before{ content:''; position:absolute; top:8px; left:11px; width:12px; height:7px; border-radius:50%; background:rgba(255,255,255,.9); transform:rotate(-25deg); }
+  .bubble:active{ transform:scale(.9); }
+
+  .card{
+    background:var(--glass-b);
+    -webkit-backdrop-filter:blur(16px) saturate(1.25); backdrop-filter:blur(16px) saturate(1.25);
+    border:1px solid rgba(255,255,255,.66);
+    border-radius:22px; box-shadow:var(--shadow);
+    padding:15px;
+  }
+  .card-title{ font-size:14.5px; font-weight:800; display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+  .card-title .tag{ font-size:11px; font-weight:700; color:#fff; background:var(--primary); padding:3px 9px; border-radius:999px; }
+
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    padding:14px 20px; border-radius:18px; font-size:16px; font-weight:800; letter-spacing:-.3px;
+    background:linear-gradient(135deg,var(--primary),var(--primary-d)); color:#fff;
+    box-shadow:0 10px 22px rgba(127,166,106,.4), inset 0 1px 0 rgba(255,255,255,.4);
+    transition:transform .16s ease, box-shadow .16s ease; width:100%;
+  }
+  .btn:active{ transform:scale(.97); }
+  .btn.sec{ background:linear-gradient(135deg,var(--secondary),#9c7148); box-shadow:0 10px 22px rgba(184,138,90,.4); }
+  .btn.ghost{ background:rgba(255,255,255,.6); color:var(--primary-d); border:1.5px solid var(--primary); box-shadow:none; }
+
+  .ai-badge{ font-size:10px; font-weight:800; color:#fff; background:linear-gradient(135deg,#7FA66A,#B88A5A); padding:2px 8px; border-radius:999px; letter-spacing:.5px; }
+  .grade{ font-size:13px; font-weight:900; width:30px; height:30px; border-radius:10px; display:flex; align-items:center; justify-content:center; color:#fff; flex:none; }
+  .grade.A{background:#5E8A4C;} .grade.B{background:#7FA66A;} .grade.C{background:#D4A03C;} .grade.D{background:#C06A4A;}
+
+  .thumb{ width:100%; aspect-ratio:1/1; border-radius:18px; display:flex; align-items:center; justify-content:center; font-size:46px; }
+
+  /* ===========================================================
+     하단 내비게이션 (유리)
+     =========================================================== */
+  .bottom-nav{
+    position:fixed; bottom:0; left:50%; transform:translateX(-50%);
+    width:100%; max-width:430px; z-index:40;
+    display:flex; justify-content:space-around; align-items:center;
+    padding:8px 6px calc(env(safe-area-inset-bottom) + 8px);
+    background:rgba(255,255,255,.72);
+    -webkit-backdrop-filter:blur(20px) saturate(1.4); backdrop-filter:blur(20px) saturate(1.4);
+    border-top:1px solid rgba(255,255,255,.7);
+    box-shadow:0 -8px 24px rgba(59,74,50,.14);
+  }
+  .tab{ display:flex; flex-direction:column; align-items:center; gap:3px; flex:1; padding:5px 0; color:#9aa39a; font-size:10.5px; font-weight:700; transition:.2s; }
+  .tab .i{ font-size:21px; line-height:1; transition:transform .2s; filter:grayscale(.4) opacity(.8); }
+  .tab.active{ color:var(--primary-d); }
+  .tab.active .i{ filter:none; }
+  .tab.active .i{ transform:translateY(-3px) scale(1.12); filter:drop-shadow(0 3px 4px rgba(127,166,106,.5)); }
+
+  /* ===========================================================
+     날씨 홈 히어로 (배경 + 화분 + 애니메이션)
+     =========================================================== */
+  .hero{ position:relative; height:44vh; min-height:320px; overflow:hidden; }
+  @media(min-width:460px){ .hero{ height:352px; } }
+  .bg-layer{ position:absolute; inset:0; background-size:cover; background-position:center; opacity:0; transition:opacity .8s ease; }
+  .bg-layer.active{ opacity:1; }
+  .vignette{ position:absolute; inset:0; pointer-events:none;
+    background:linear-gradient(to bottom, rgba(0,0,0,.06) 0%, transparent 20%, transparent 55%, rgba(247,243,216,.85) 100%); }
+
+  .fx{ position:absolute; inset:0; pointer-events:none; overflow:hidden; }
+  .sun-glow{ position:absolute; top:-150px; left:50%; width:420px; height:420px; border-radius:50%;
+    background:radial-gradient(circle, rgba(255,244,190,.85), rgba(255,225,140,.32) 42%, transparent 70%);
+    filter:blur(6px); opacity:0; transition:opacity .8s; transform:translateX(-50%); animation:sunPulse 6s ease-in-out infinite; }
+  @keyframes sunPulse{0%,100%{transform:translateX(-50%) scale(1);}50%{transform:translateX(-50%) scale(1.08);}}
+  .motes{ position:absolute; inset:0; opacity:0; transition:opacity .8s; }
+  .mote{ position:absolute; bottom:-20px; width:9px; height:9px; border-radius:50%;
+    background:radial-gradient(circle, rgba(255,250,210,.95), rgba(255,240,170,0)); animation:floatUp linear infinite; }
+  @keyframes floatUp{0%{transform:translateY(0) scale(.6);opacity:0;}15%{opacity:.9;}100%{transform:translateY(-60vh) translateX(24px) scale(1);opacity:0;}}
+  .cloud-tint{ position:absolute; inset:0; opacity:0; transition:opacity .8s; mix-blend-mode:multiply;
+    background:linear-gradient(180deg, rgba(150,168,180,.28), rgba(120,138,150,.14)); }
+  .cloud-band{ position:absolute; inset:0; opacity:0; transition:opacity .8s; filter:blur(8px);
+    background:radial-gradient(60% 40% at 20% 25%, rgba(255,255,255,.55), transparent 60%),
+              radial-gradient(70% 45% at 75% 20%, rgba(255,255,255,.45), transparent 60%);
+    animation:cloudDrift 26s linear infinite alternate; }
+  @keyframes cloudDrift{0%{transform:translateX(-6%);}100%{transform:translateX(6%);}}
+  .rain{ position:absolute; inset:0; opacity:0; transition:opacity .8s; }
+  .drop-rain{ position:absolute; top:-15%; width:2px; height:52px; border-radius:2px;
+    background:linear-gradient(to bottom, rgba(255,255,255,0), rgba(214,231,240,.75)); animation:rainFall linear infinite; }
+  @keyframes rainFall{0%{transform:translateY(-15vh);opacity:0;}10%{opacity:.7;}100%{transform:translateY(70vh);opacity:.2;}}
+
+  .hero-top{ position:absolute; top:0; left:0; right:0; z-index:6; padding:calc(env(safe-area-inset-top) + 16px) 16px 0;
+    display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
+  .greet{ font-size:17px; font-weight:800; text-shadow:0 1px 6px rgba(255,255,255,.6); }
+  .greet small{ display:block; font-size:12px; font-weight:600; color:#5a6a4e; margin-top:2px; }
+  .weather-chip{ display:inline-flex; align-items:center; gap:7px; padding:8px 13px; border-radius:999px;
+    background:var(--glass); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px);
+    border:1px solid rgba(255,255,255,.55); box-shadow:0 6px 18px rgba(59,74,50,.16); font-size:13px; font-weight:700; }
+  .hint{ position:absolute; z-index:6; top:calc(env(safe-area-inset-top) + 64px); left:16px; right:16px;
+    font-size:12px; font-weight:600; line-height:1.5; color:#5a6a4e; text-align:center;
+    background:rgba(247,243,216,.7); padding:7px 12px; border-radius:14px;
+    opacity:0; transform:translateY(-4px); transition:.4s; }
+  .hint.show{ opacity:1; transform:translateY(0); }
+
+  .stage{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; }
+  .pot-wrap{ position:relative; margin-top:14px; width:52%; display:flex; justify-content:center; animation:idleFloat 3s ease-in-out infinite; }
+  @keyframes idleFloat{0%,100%{transform:translateY(0);}50%{transform:translateY(-6px);}}
+  .pot-img{ width:100%; height:auto; display:block; filter:drop-shadow(0 14px 10px rgba(59,74,50,.28)); }
+  .pot-wrap.watered .pot-img{ animation:potBounce .7s ease; }
+  @keyframes potBounce{0%{transform:scale(1);}35%{transform:scale(1.09);}100%{transform:scale(1);}}
+  .pot-shadow{ position:absolute; bottom:-2%; left:50%; transform:translateX(-50%); width:56%; height:22px; border-radius:50%;
+    background:radial-gradient(50% 50% at 50% 50%, rgba(59,74,50,.3), transparent 70%); filter:blur(3px); }
+  .leaf{ position:absolute; font-size:24px; opacity:.9; transform-origin:bottom center; filter:drop-shadow(0 2px 3px rgba(0,0,0,.15)); }
+  .leaf.l1{ top:4%; left:2%; animation:sway 4.2s ease-in-out infinite; }
+  .leaf.l2{ top:12%; right:0%; animation:sway 3.4s ease-in-out infinite reverse; }
+  .leaf.l3{ bottom:24%; left:-2%; animation:sway 5s ease-in-out infinite; }
+  @keyframes sway{0%,100%{transform:rotate(-8deg) translateY(0);}50%{transform:rotate(9deg) translateY(-4px);}}
+  .water-fx{ position:absolute; top:-6%; left:0; right:0; height:60%; }
+  .wdrop{ position:absolute; top:0; width:11px; height:15px;
+    background:radial-gradient(circle at 35% 30%, #fff, #9fd0e6 60%, #6fb3d6); border-radius:50% 50% 50% 50%/60% 60% 40% 40%;
+    box-shadow:0 0 6px rgba(120,190,225,.7); opacity:0; }
+  @keyframes dropFall{0%{transform:translateY(0) scale(.6);opacity:0;}20%{opacity:1;}100%{transform:translateY(110px) scale(1);opacity:0;}}
+
+  .water-btn{ position:absolute; z-index:12; left:50%; bottom:18px; transform:translateX(-50%);
+    width:96px; height:96px; border-radius:50%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px;
+    color:var(--ink); font-weight:800;
+    background:radial-gradient(circle at 32% 26%, rgba(255,255,255,.9), rgba(255,255,255,.15) 42%, transparent 60%),
+              radial-gradient(circle at 70% 78%, rgba(127,166,106,.5), rgba(127,166,106,.1) 55%), rgba(255,255,255,.22);
+    -webkit-backdrop-filter:blur(10px) saturate(1.4); backdrop-filter:blur(10px) saturate(1.4);
+    border:1.5px solid rgba(255,255,255,.65);
+    box-shadow:0 14px 34px rgba(59,74,50,.3), inset 0 6px 14px rgba(255,255,255,.75), inset 0 -10px 18px rgba(127,166,106,.35);
+    animation:bubble 5s ease-in-out infinite; }
+  @keyframes bubble{0%,100%{transform:translate(-50%,0);}50%{transform:translate(-50%,-5px);}}
+  .water-btn:active{ transform:translate(-50%,0) scale(.93); }
+  .water-btn::before{ content:''; position:absolute; top:14px; left:20px; width:20px; height:12px; border-radius:50%; background:rgba(255,255,255,.85); filter:blur(1px); transform:rotate(-25deg); }
+  .water-btn .drop-ico{ font-size:27px; } .water-btn .lbl{ font-size:13px; }
+
+  .toast{ position:fixed; z-index:99; left:50%; bottom:120px; transform:translate(-50%,14px);
+    padding:12px 20px; border-radius:18px; background:rgba(94,138,76,.94); color:#fff; font-size:14px; font-weight:700; white-space:nowrap;
+    box-shadow:0 12px 30px rgba(59,74,50,.4); opacity:0; pointer-events:none; transition:.45s cubic-bezier(.34,1.4,.6,1); }
+  .toast.show{ opacity:1; transform:translate(-50%,0); }
+
+  /* ---------- 홈 대시보드 ---------- */
+  .dash{ padding:14px 14px 0; display:flex; flex-direction:column; gap:11px; margin-top:-22px; position:relative; z-index:10; }
+  .status-card{ display:flex; flex-direction:column; gap:12px; }
+  .status-head{ display:flex; align-items:center; justify-content:space-between; }
+  .plant-name{ font-size:17px; font-weight:800; } .plant-name small{ font-size:12px; color:var(--sub); margin-left:6px; }
+  .mood{ font-size:12px; font-weight:700; color:#fff; background:var(--primary); padding:5px 11px; border-radius:999px; }
+  .gauge-row{ display:flex; align-items:center; gap:10px; }
+  .gauge-label{ font-size:12.5px; font-weight:700; color:var(--secondary); white-space:nowrap; }
+  .gauge{ flex:1; height:14px; border-radius:999px; background:rgba(184,138,90,.2); overflow:hidden; box-shadow:inset 0 1px 3px rgba(0,0,0,.12); }
+  .gauge-fill{ height:100%; width:46%; border-radius:999px; background:linear-gradient(90deg,#8fd3e6,#6fb3d6 60%,#5aa0c8);
+    box-shadow:0 0 8px rgba(120,190,225,.6); transition:width .7s cubic-bezier(.34,1.3,.5,1); }
+  .gauge-pct{ font-size:13px; font-weight:800; width:38px; text-align:right; }
+
+  .coin-row{ display:flex; gap:12px; }
+  .coin-box{ flex:1; text-align:center; padding:14px 8px; border-radius:20px; }
+  .coin-box.bat{ background:linear-gradient(135deg, rgba(184,138,90,.22), rgba(184,138,90,.08)); border:1px solid rgba(184,138,90,.3); }
+  .coin-box.tam{ background:linear-gradient(135deg, rgba(127,166,106,.22), rgba(127,166,106,.08)); border:1px solid rgba(127,166,106,.3); }
+  .coin-box .v{ font-size:22px; font-weight:900; } .coin-box .l{ font-size:11.5px; font-weight:700; color:var(--sub); margin-top:2px; }
+
+  .mission-item{ display:flex; align-items:center; gap:11px; padding:11px 0; border-bottom:1px dashed rgba(184,138,90,.25); }
+  .mission-item:last-child{ border-bottom:none; }
+  .m-check{ width:26px; height:26px; border-radius:9px; border:2px solid var(--primary); flex:none; display:flex; align-items:center; justify-content:center; font-size:15px; color:#fff; transition:.2s; }
+  .m-check.done{ background:var(--primary); }
+  .mission-item .t{ font-size:14.5px; font-weight:600; flex:1; } .mission-item.done .t{ color:var(--sub); text-decoration:line-through; }
+
+  .ai-msg{ display:flex; gap:11px; align-items:flex-start; }
+  .ai-ava{ width:40px; height:40px; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center; font-size:22px;
+    background:linear-gradient(135deg,var(--primary-l),#fff); box-shadow:inset 0 0 0 2px rgba(127,166,106,.4); }
+  .ai-msg .body{ font-size:14px; line-height:1.55; font-weight:600; }
+
+  .shortcut-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+  .sc{ display:flex; flex-direction:column; align-items:center; gap:6px; padding:14px 4px; border-radius:20px;
+    background:var(--glass-b); border:1px solid rgba(255,255,255,.6); box-shadow:0 6px 16px rgba(59,74,50,.12); transition:transform .16s; }
+  .sc:active{ transform:scale(.94); }
+  .sc .i{ font-size:26px; } .sc .l{ font-size:11px; font-weight:700; }
+
+  .rank-mini{ display:flex; align-items:center; gap:12px; }
+  .rank-badge{ width:52px; height:52px; border-radius:16px; flex:none; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:linear-gradient(135deg,#D4A03C,#B8862A); color:#fff; box-shadow:0 8px 18px rgba(212,160,60,.4); }
+  .rank-badge .n{ font-size:20px; font-weight:900; line-height:1; } .rank-badge .u{ font-size:9px; font-weight:700; }
+
+  /* 출석 달력 */
+  .cal{ display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
+  .cal .dow{ font-size:10px; font-weight:800; color:var(--sub); text-align:center; padding-bottom:2px; }
+  .cal .cell{ aspect-ratio:1/1; border-radius:11px; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700;
+    background:rgba(184,138,90,.1); color:var(--ink); }
+  .cal .cell.empty{ background:none; } .cal .cell.done{ background:var(--primary); color:#fff; box-shadow:0 4px 10px rgba(127,166,106,.4); }
+  .cal .cell.today{ outline:2.5px solid var(--secondary); outline-offset:-2px; }
+  .streak{ display:flex; gap:10px; margin-bottom:12px; }
+  .streak .box{ flex:1; text-align:center; background:rgba(127,166,106,.12); border-radius:16px; padding:10px; }
+  .streak .box .v{ font-size:20px; font-weight:900; color:var(--primary-d); } .streak .box .l{ font-size:11px; color:var(--sub); font-weight:700; }
+
+  /* 리스트/카드 그리드 */
+  .list{ padding:14px 16px; display:flex; flex-direction:column; gap:12px; }
+  .grid2{ padding:14px 16px; display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+
+  /* 검색/필터 */
+  .searchbar{ display:flex; gap:10px; padding:12px 16px 4px; }
+  .searchbar input{ flex:1; padding:12px 16px; border-radius:16px; border:1.5px solid rgba(184,138,90,.3); background:rgba(255,255,255,.7); font-size:15px; }
+  .filters{ display:flex; gap:8px; padding:8px 16px; overflow-x:auto; }
+  .filters::-webkit-scrollbar{height:0;}
+  .chip{ flex:none; padding:8px 15px; border-radius:999px; font-size:13px; font-weight:700; background:rgba(255,255,255,.65); border:1.5px solid rgba(184,138,90,.28); color:var(--sub); }
+  .chip.on{ background:var(--primary); color:#fff; border-color:var(--primary); box-shadow:0 6px 14px rgba(127,166,106,.35); }
+
+  /* 마켓 카드 */
+  .mk{ display:flex; gap:13px; align-items:center; }
+  .mk .th{ width:76px; height:76px; border-radius:18px; flex:none; display:flex; align-items:center; justify-content:center; font-size:36px; }
+  .mk .info{ flex:1; min-width:0; }
+  .mk .title{ font-size:15px; font-weight:700; line-height:1.35; margin-bottom:5px; }
+  .mk .meta{ font-size:11.5px; color:var(--sub); font-weight:600; }
+  .mk .price{ font-size:16px; font-weight:900; color:var(--secondary); margin-top:4px; }
+  .mk .price .free{ color:var(--primary-d); }
+  .stbadge{ font-size:10.5px; font-weight:800; padding:3px 9px; border-radius:999px; display:inline-block; }
+  .stbadge.sell{ background:rgba(127,166,106,.2); color:var(--primary-d); }
+  .stbadge.rsv{ background:rgba(212,160,60,.2); color:#9c7010; }
+  .stbadge.done{ background:rgba(120,120,120,.18); color:#666; }
+
+  /* 소셜 */
+  .post .p-head{ display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+  .p-ava{ width:42px; height:42px; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center; font-size:22px; }
+  .p-head .nm{ font-size:15px; font-weight:800; } .p-head .mt{ font-size:11px; color:var(--sub); font-weight:600; }
+  .p-photo{ width:100%; aspect-ratio:4/3; border-radius:18px; display:flex; align-items:center; justify-content:center; font-size:64px; margin:10px 0; }
+  .p-text{ font-size:14.5px; line-height:1.6; font-weight:500; }
+  .p-actions{ display:flex; gap:16px; margin-top:12px; padding-top:12px; border-top:1px solid rgba(184,138,90,.2); }
+  .p-act{ display:flex; align-items:center; gap:6px; font-size:14px; font-weight:700; color:var(--sub); }
+  .p-act.liked{ color:#e05a6f; }
+  .comment{ display:flex; gap:9px; margin-top:11px; }
+  .c-ava{ width:30px; height:30px; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center; font-size:15px; background:var(--primary-l); }
+  .c-bubble{ background:rgba(255,255,255,.7); border-radius:4px 16px 16px 16px; padding:9px 13px; font-size:13px; line-height:1.5; }
+  .c-bubble .who{ font-weight:800; margin-right:6px; }
+
+  /* 3D */
+  #glwrap{ position:relative; width:100%; height:46vh; min-height:300px; background:linear-gradient(180deg,#bfe0ef,#e8f0d8); overflow:hidden; }
+  @media(min-width:460px){ #glwrap{ height:340px; } }
+  #gl{ width:100%; height:100%; display:block; }
+  #glFallback{ position:absolute; inset:0; display:none; flex-direction:column; align-items:center; justify-content:center; gap:8px; font-size:80px; }
+  #glFallback .cap{ font-size:13px; font-weight:700; color:var(--ink); }
+  .gl-oreum{ position:absolute; bottom:34%; font-size:70px; opacity:.8;}
+  /* 3D 뷰 전환 토글 (내부/야외) */
+  .view-toggle{ position:absolute; top:12px; right:12px; z-index:5; display:flex; gap:4px;
+    padding:4px; border-radius:999px; background:rgba(255,255,255,.72);
+    -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); box-shadow:0 4px 14px rgba(59,74,50,.22); }
+  .view-toggle button{ border:none; background:transparent; cursor:pointer; font-weight:800;
+    font-size:12.5px; color:var(--sub); padding:7px 14px; border-radius:999px; transition:.18s; }
+  .view-toggle button.on{ background:var(--primary); color:#fff; box-shadow:0 2px 8px rgba(127,166,106,.5); }
+  .growth-panel{ padding:14px; display:flex; flex-direction:column; gap:12px; }
+  .slider{ -webkit-appearance:none; width:100%; height:14px; border-radius:999px; background:linear-gradient(90deg,var(--primary),var(--secondary)); outline:none; margin:14px 0 6px; }
+  .slider::-webkit-slider-thumb{ -webkit-appearance:none; width:30px; height:30px; border-radius:50%; background:radial-gradient(circle at 32% 28%,#fff,#dff0d4); border:2px solid #fff; box-shadow:0 4px 12px rgba(59,74,50,.4); cursor:pointer; }
+  .stage-badges{ display:flex; justify-content:space-between; font-size:10.5px; font-weight:700; color:var(--sub); }
+  .stage-now{ text-align:center; font-size:28px; margin:6px 0; }
+  .env-panel .row{ display:flex; gap:8px; }
+  .seg{ display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+  .seg button{ flex:1; min-width:60px; padding:9px; border-radius:12px; font-size:12.5px; font-weight:700; background:rgba(255,255,255,.6); border:1.5px solid rgba(184,138,90,.25); color:var(--sub); }
+  .seg button.on{ background:var(--primary); color:#fff; border-color:var(--primary); }
+
+  /* 환경 정보 바 (성장 모니터) */
+  .env-bar{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+  .env-cell{ background:rgba(255,255,255,.6); border-radius:16px; padding:12px; text-align:center; }
+  .env-cell .k{ font-size:11px; color:var(--sub); font-weight:700; } .env-cell .v{ font-size:19px; font-weight:900; margin:2px 0; }
+  .env-cell .s{ font-size:10.5px; font-weight:800; color:var(--primary-d); background:rgba(127,166,106,.16); border-radius:999px; padding:2px 8px; display:inline-block; }
+
+  /* 폼 */
+  .field{ margin-bottom:16px; } .field label{ display:block; font-size:13px; font-weight:800; margin-bottom:7px; }
+  .field .ex{ font-size:11.5px; color:var(--sub); font-weight:500; margin-top:5px; }
+  .input{ width:100%; padding:14px 16px; border-radius:16px; border:1.5px solid rgba(184,138,90,.3); background:rgba(255,255,255,.75); font-size:16px; }
+  textarea.input{ min-height:96px; resize:vertical; line-height:1.5; }
+  .with-mic{ position:relative; } .with-mic .mic{ position:absolute; right:8px; bottom:8px; width:40px; height:40px; }
+  .mic.rec{ animation:recPulse 1s infinite; background:radial-gradient(circle at 32% 26%,#fff,#ffd2d2 60%,#e05a6f)!important; }
+  @keyframes recPulse{0%,100%{box-shadow:0 0 0 0 rgba(224,90,111,.5);}50%{box-shadow:0 0 0 8px rgba(224,90,111,0);}}
+  .checkbox{ display:flex; align-items:center; gap:10px; padding:12px; border-radius:14px; background:rgba(127,166,106,.1); font-size:14px; font-weight:700; }
+  .checkbox input{ width:22px; height:22px; accent-color:var(--primary); }
+
+  /* 교환 */
+  .ex-amount{ text-align:center; padding:22px; background:linear-gradient(135deg,rgba(184,138,90,.15),rgba(127,166,106,.1)); border-radius:24px; }
+  .ex-amount .big{ font-size:44px; font-weight:900; color:var(--secondary); } .ex-amount .eq{ font-size:15px; color:var(--sub); font-weight:700; margin-top:4px;}
+  .stepper{ display:flex; align-items:center; justify-content:center; gap:18px; margin:16px 0; }
+  .stepper .b{ width:54px; height:54px; font-size:26px; }
+  .stepper .n{ font-size:34px; font-weight:900; min-width:70px; text-align:center; }
+
+  /* 구독 카드 */
+  .sub-card{ border-radius:24px; padding:20px; color:#fff; position:relative; overflow:hidden; }
+  .sub-card.senior{ background:linear-gradient(135deg,#7FA66A,#5E8A4C); }
+  .sub-card.consumer{ background:linear-gradient(135deg,#B88A5A,#9c7148); }
+  .sub-card h3{ font-size:19px; font-weight:900; margin-bottom:4px; } .sub-card .price{ font-size:15px; opacity:.9; margin-bottom:12px; font-weight:700;}
+  .sub-card ul{ list-style:none; display:flex; flex-direction:column; gap:8px; margin-bottom:16px; }
+  .sub-card li{ font-size:13.5px; display:flex; gap:8px; align-items:flex-start; line-height:1.4; } .sub-card li::before{ content:'✓'; font-weight:900; }
+  .sub-card .btn{ background:rgba(255,255,255,.95); color:var(--ink); box-shadow:none; }
+
+  .divider{ text-align:center; font-size:12px; font-weight:800; color:var(--sub); margin:8px 0; letter-spacing:1px; }
+  .empty{ text-align:center; padding:40px 20px; color:var(--sub); } .empty .e{ font-size:52px; margin-bottom:10px; }
+  .notice{ font-size:11.5px; color:var(--sub); font-weight:600; line-height:1.5; background:rgba(184,138,90,.1); border-radius:14px; padding:11px 14px; }
+</style>
+</head>
+<body>
+<div id="app" class="app-container">
+  <div id="screens"></div>
+
+  <!-- 하단 내비게이션 -->
+  <nav id="tabbar" class="bottom-nav">
+    <button class="tab" data-tab="home"><span class="i">🏡</span>홈</button>
+    <button class="tab" data-tab="market"><span class="i">🧺</span>마켓</button>
+    <button class="tab" data-tab="garden3d"><span class="i">🌱</span>3D 텃밭</button>
+    <button class="tab" data-tab="social"><span class="i">💬</span>실버 소셜</button>
+    <button class="tab" data-tab="mypot"><span class="i">🪴</span>내 우영팟</button>
+  </nav>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* =============================================================
+   전역 상태 & LocalStorage
+   ============================================================= */
+const WEATHER_API_KEY = "YOUR_API_KEY_HERE";
+const LS = {
+  get:(k,d)=>{ try{ const v=localStorage.getItem('swp_'+k); return v===null?d:JSON.parse(v);}catch(e){return d;} },
+  set:(k,v)=> localStorage.setItem('swp_'+k, JSON.stringify(v)),
+};
+
+const store = {
+  nickname: LS.get('nickname','초록삼촌'),
+  region: LS.get('region','제주시 애월읍'),
+  role: '시니어 생산자',
+  batcoin: LS.get('batcoin', 42),
+  tamnaCoin(){ return this.batcoin*100; },
+  moisture: LS.get('moisture', 46),
+  weather: 'sunny',
+  attend: LS.get('attend', []),        // ['2026-07-01', ...]
+  missions: LS.get('missions', [false,false,false,false,false]),
+};
+
+const MISSIONS = ['오늘 이온 포션 완료하기','성장 사진 1장 등록하기','잎 상태 확인하기','AI 가이드 읽기','3D 텃밭에서 추천 작물 살펴보기'];
+
+let PLANTS = LS.get('plants', [
+  {id:'p1', crop:'방울토마토', nick:'초록이', planted:'2026-06-01', place:'베란다', moisture:46, ph:6.2, temp:24.1, humid:58, co2:'적정', ion:2.0, emoji:'🍅', tone:'#e07a5f'},
+  {id:'p2', crop:'상추',       nick:'',       planted:'2026-06-15', place:'주방 창가', moisture:72, ph:6.5, temp:23.0, humid:60, co2:'적정', ion:1.8, emoji:'🥬', tone:'#7FA66A'},
+  {id:'p3', crop:'백리향',     nick:'햇살이', planted:'2026-05-20', place:'거실',    moisture:55, ph:6.0, temp:25.0, humid:52, co2:'적정', ion:2.1, emoji:'🌿', tone:'#9ac47a'},
+]);
+function savePlants(){ LS.set('plants', PLANTS); }
+const plantLabel = p => p.nick && p.nick.trim() ? p.nick : p.crop;
+
+const MARKET = [
+  {id:'m1', title:'오늘 아침에 수확한 방울토마토예요', price:5, free:false, place:'애월읍 주민센터 앞', time:'오전 9시~12시', status:'sell', seller:'초록삼촌', emoji:'🍅', tone:'#f4c7bb', desc:'스마트팜에서 유기농으로 키운 방울토마토입니다. 아삭하고 달아요. 소분 포장 가능합니다.'},
+  {id:'m2', title:'상추 많이 자라서 나눔합니다', price:0, free:true, place:'하귀 정자나무 주변', time:'오후 2시~5시', status:'rsv', seller:'바다할망', emoji:'🥬', tone:'#cfe6bf', desc:'상추가 너무 잘 자라서 이웃과 나눔해요. 봉지 가져오시면 담아드립니다.'},
+  {id:'m3', title:'제주 청귤 한 봉지 (약 1kg)', price:8, free:false, place:'한림읍 5일장 입구', time:'상시 가능', status:'sell', seller:'귤밭삼춘', emoji:'🍊', tone:'#f6e0b8', desc:'새콤한 청귤입니다. 청 담그기에 좋아요. 직접 재배했습니다.'},
+  {id:'m4', title:'제주 푸른콩 (수확 완료)', price:6, free:false, place:'애월읍 경로당 앞', time:'오전 10시 이후', status:'done', seller:'초록삼촌', emoji:'🫘', tone:'#dfe6cf', desc:'제주 토종 푸른콩입니다. 밥에 넣어 드시면 고소해요.'},
+];
+
+const SOCIAL = [
+  {id:'s1', author:'초록삼촌', crop:'상추 성장 기록', text:'오늘 상추가 이만큼 자랐어요. 아침마다 들여다보는 재미가 좋습니다. AI 텃밭친구가 물 줄 때를 알려줘서 편하네요.', hearts:12, tone:'#cfe6bf', emoji:'🥬', liked:false,
+    comments:[{author:'AI 텃밭친구', text:'상추 잎 색이 아주 건강해요! 초록삼촌님의 꾸준한 돌봄 덕분이에요 🌱', ai:true},{author:'바다할망', text:'부럽수다게~ 나도 심어봐야주.', ai:false}]},
+  {id:'s2', author:'바다할망', crop:'방울토마토 수확', text:'첫 방울토마토를 수확했수다. 손주 주려고 아껴뒀어요. 직접 키우니 더 맛있는 것 같아요.', hearts:24, tone:'#f4c7bb', emoji:'🍅', liked:false,
+    comments:[{author:'AI 텃밭친구', text:'빨갛게 잘 익었네요! 첫 수확 축하드려요 🎉', ai:true}]},
+];
+
+const SIM_CROPS = [
+  {name:'백리향', grade:'A', note:'햇빛이 부족한 베란다 환경에서도 비교적 적합', emoji:'🌿', color:0x8fbf6a, real:true},
+  {name:'카라향', grade:'B', note:'제주 환경과 어울리지만 일정한 관리 필요', emoji:'🌸', color:0xc98fb0, real:true},
+  {name:'멜론',   grade:'C', note:'공간과 햇빛이 충분할 때 추천', emoji:'🍈', color:0xa9c46a, real:true},
+  {name:'자카란다', grade:'D', note:'제주 실내 환경에서 실제 재배 난이도 높음', emoji:'🌳', color:0x8a7fd0, real:false},
+];
+
+const RANKING = [
+  {rank:1, name:'귤밭삼춘', region:'한림읍', score:980},
+  {rank:2, name:'바다할망', region:'애월읍', score:940},
+  {rank:3, name:'초록삼촌 (나)', region:'애월읍', score:910, me:true},
+  {rank:4, name:'오름지기', region:'조천읍', score:870},
+  {rank:5, name:'유채꽃님', region:'애월읍', score:830},
+];
+
+/* =============================================================
+   유틸
+   ============================================================= */
+const $ = (s,el=document)=>el.querySelector(s);
+const screens = document.getElementById('screens');
+const toastEl = document.getElementById('toast');
+let toastTimer;
+function toast(msg){ toastEl.textContent=msg; toastEl.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>toastEl.classList.remove('show'),1900); }
+function todayKey(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function markAttend(){ if(!store.attend.includes(todayKey())){ store.attend.push(todayKey()); LS.set('attend',store.attend); } }
+
+/* =============================================================
+   라우터
+   ============================================================= */
+const TABS = ['home','market','garden3d','social','mypot'];
+let navStack = ['home'];
+
+function render(id, params={}){
+  const fn = ROUTES[id];
+  if(!fn){ return; }
+  const html = fn(params);
+  // 세부화면은 light 배경
+  const light = !TABS.includes(id) || id!=='home';
+  const el = document.createElement('div');
+  el.className = 'screen' + (id!=='home' ? ' light':'');
+  el.dataset.screen = id;
+  el.innerHTML = html;
+  // 이전 화면 제거
+  screens.innerHTML='';
+  screens.appendChild(el);
+  requestAnimationFrame(()=>el.classList.add('active'));
+  // 탭 활성화
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===currentTab(id)));
+  // 스크립트 훅
+  if(AFTER[id]) AFTER[id](el, params);
+  el.scrollTop=0;
+}
+function currentTab(id){
+  const map={ plantDetail:'mypot', addPlant:'mypot', monitor:'mypot', deviceManage:'mypot',
+              marketDetail:'market', marketAdd:'market', order:'market',
+              socialWrite:'social', cooking:'social',
+              ranking:'home', exchange:'home', profile:'home', subscribe:'home', attendance:'home' };
+  return map[id]||id;
+}
+function go(id, params={}){ navStack.push(id); render(id, params); }
+function tab(id){ navStack=[id]; render(id); }
+function back(){ navStack.pop(); const prev=navStack[navStack.length-1]||'home'; render(prev); }
+
+document.querySelectorAll('.tab').forEach(t=> t.addEventListener('click', ()=>tab(t.dataset.tab)));
+
+/* header helper */
+function header(title, sub){
+  return `<div class="header">
+    <button class="bubble" onclick="back()">‹</button>
+    <div><h1>${title}</h1>${sub?`<div class="sub">${sub}</div>`:''}</div>
+  </div>`;
+}
+
+/* =============================================================
+   화면 정의
+   ============================================================= */
+const ROUTES = {};
+const AFTER = {};
+
+/* ---------- 홈 (핵심 카드 5개) ---------- */
+ROUTES.home = ()=>{
+  const p = PLANTS[0];
+  return `
+  <div class="hero">
+    <div class="bg-layer" id="bg-sunny"  style="background-image:url('sunny.png')"></div>
+    <div class="bg-layer" id="bg-cloudy" style="background-image:url('cloudy.png')"></div>
+    <div class="bg-layer" id="bg-rainy"  style="background-image:url('rainy.png')"></div>
+    <div class="fx">
+      <div class="sun-glow" id="sunGlow"></div><div class="motes" id="motes"></div>
+      <div class="cloud-tint" id="cloudTint"></div><div class="cloud-band" id="cloudBand"></div>
+      <div class="rain" id="rain"></div>
+    </div>
+    <div class="vignette"></div>
+    <div class="hero-top">
+      <div class="greet">내 우영팟<small>내가 키우는 작물 ${PLANTS.length}개</small></div>
+      <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end">
+        <div class="weather-chip"><span id="wIco">☀️</span><span id="wText">불러오는 중…</span></div>
+      </div>
+    </div>
+    <div class="hint" id="hint">위치 권한을 허용하면 현재 날씨에 맞춰 배경이 바뀝니다.</div>
+    <div class="stage">
+      <div class="pot-wrap" id="potWrap">
+        <span class="leaf l1">🌿</span><span class="leaf l2">🍃</span><span class="leaf l3">🌱</span>
+        <img class="pot-img" src="orange_potato_pot.png" alt="내 식물" />
+        <div class="pot-shadow"></div>
+        <div class="water-fx" id="waterFx"></div>
+      </div>
+    </div>
+    <button class="water-btn" id="waterBtn"><span class="drop-ico">💧</span><span class="lbl">물 주기</span></button>
+  </div>
+
+  <div class="dash">
+    <div class="card status-card">
+      <div class="status-head">
+        <div class="plant-name">${plantLabel(p)} <small>${p.crop}</small></div>
+        <div class="mood" id="mood">🙂 기분 좋음</div>
+      </div>
+      <div class="gauge-row">
+        <span class="gauge-label">💧 수분</span>
+        <div class="gauge"><div class="gauge-fill" id="gaugeFill"></div></div>
+        <span class="gauge-pct" id="gaugePct">46%</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="header">
+    <div style="flex:1"><h1>🏡 ${store.nickname}님</h1><div class="sub">${store.region} · 오늘도 우영팟 돌봄</div></div>
+    <button class="bubble" onclick="go('profile')">👤</button>
+  </div>
+  <div class="list">
+    <!-- 1. 오늘의 이온 포션 -->
+    <div class="card">
+      <div class="card-title">🧪 오늘의 이온 포션 <span class="tag">권장</span></div>
+      <div class="ai-msg" style="margin-bottom:12px">
+        <div class="ai-ava">🧪</div>
+        <div class="body" style="font-size:13.5px">${plantLabel(p)}에게 이온 포션을 줄 시간이에요. 잎이 조금 목말라 보여요.</div>
+      </div>
+      <button class="btn" onclick="completeIon()">이온 포션 완료하기</button>
+    </div>
+
+    <!-- 2. 오늘의 재배 미션 -->
+    <div class="card">
+      <div class="card-title">🎯 오늘의 재배 미션</div>
+      <div id="missionList"></div>
+    </div>
+
+    <!-- 3. 내 작물 요약 -->
+    <div class="card" onclick="tab('mypot')">
+      <div class="card-title">🪴 내 작물 요약 <span style="margin-left:auto;color:var(--sub);font-weight:700">›</span></div>
+      <div class="mk">
+        <div class="th" style="width:56px;height:56px;font-size:28px;background:linear-gradient(135deg,${p.tone}66,${p.tone}22)">${p.emoji}</div>
+        <div class="info">
+          <div class="title" style="margin-bottom:6px">${plantLabel(p)} 외 ${PLANTS.length-1}개</div>
+          <div class="gauge-row"><span class="gauge-label" style="font-size:11px">💧</span>
+            <div class="gauge" style="height:10px"><div class="gauge-fill" style="width:${p.moisture}%"></div></div>
+            <span class="gauge-pct" style="font-size:11px">${p.moisture}%</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. 바트코인 / 탐나는전 교환 -->
+    <div class="card" onclick="go('exchange')">
+      <div class="card-title">🪙 바트코인 · 탐나는전 <span style="margin-left:auto;color:var(--sub);font-weight:700">›</span></div>
+      <div class="coin-row">
+        <div class="coin-box bat"><div class="v">🪙 ${store.batcoin}</div><div class="l">보유 바트코인</div></div>
+        <div class="coin-box tam"><div class="v">₩${store.tamnaCoin().toLocaleString()}</div><div class="l">교환 가능 금액</div></div>
+      </div>
+    </div>
+
+    <!-- 5. 우리 동네 랭킹 요약 -->
+    <div class="card" onclick="go('ranking')">
+      <div class="card-title">🏆 우리 동네 랭킹 <span style="margin-left:auto;color:var(--sub);font-weight:700">›</span></div>
+      <div class="rank-mini">
+        <div class="rank-badge"><span class="n">3</span><span class="u">위</span></div>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:800">${store.nickname}님, 애월읍 3위 달성!</div>
+          <div style="font-size:11.5px;color:var(--sub);font-weight:600;margin-top:2px">성실 텃밭 랭킹 · 910점</div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+};
+
+AFTER.home = (el)=>{ renderMissions(); initWeather(); applyMoisture(); initWaterBtn(el); };
+
+// 물 주기 버튼 인터랙션 (홈 히어로)
+function initWaterBtn(el){
+  const btn=$('#waterBtn',el), potWrap=$('#potWrap',el), waterFx=$('#waterFx',el);
+  if(!btn||!potWrap||!waterFx) return;
+  btn.addEventListener('click', ()=>{
+    for(let i=0;i<8;i++){ const d=document.createElement('div'); d.className='wdrop';
+      d.style.left=(35+Math.random()*30)+'%'; d.style.animation=`dropFall ${.7+Math.random()*.4}s ease-in ${i*.06}s forwards`;
+      waterFx.appendChild(d); setTimeout(()=>d.remove(),1400); }
+    potWrap.classList.remove('watered'); void potWrap.offsetWidth; potWrap.classList.add('watered');
+    store.moisture=Math.min(100,store.moisture+8+Math.floor(Math.random()*7)); LS.set('moisture',store.moisture);
+    PLANTS[0].moisture=store.moisture; savePlants(); applyMoisture(); markAttend();
+    toast('물을 줬어요! 식물이 기뻐하고 있어요 🌱');
+  });
+  potWrap.addEventListener('animationend',e=>{ if(e.animationName==='potBounce') potWrap.classList.remove('watered'); });
+}
+
+function applyMoisture(){
+  const f=$('#gaugeFill'), p=$('#gaugePct'), m=$('#mood'); if(!f) return;
+  const v=Math.max(0,Math.min(100,store.moisture));
+  f.style.width=v+'%'; p.textContent=v+'%';
+  m.textContent = v>=80?'😊 아주 촉촉!': v>=50?'🙂 기분 좋음': v>=25?'😐 조금 목말라요':'🥵 물이 필요해요';
+}
+function renderMissions(){
+  const box=$('#missionList'); if(!box) return;
+  box.innerHTML = MISSIONS.map((m,i)=>`
+    <div class="mission-item ${store.missions[i]?'done':''}" onclick="toggleMission(${i})">
+      <div class="m-check ${store.missions[i]?'done':''}">${store.missions[i]?'✓':''}</div>
+      <div class="t">${m}</div>
+    </div>`).join('');
+}
+function toggleMission(i){
+  store.missions[i]=!store.missions[i]; LS.set('missions',store.missions); renderMissions();
+  if(store.missions[i]){ markAttend(); renderCalendar(); toast('미션 완료! 오늘 출석에 기록됐어요 ✅'); }
+}
+function completeIon(){
+  markAttend();
+  store.missions[0]=true; LS.set('missions',store.missions);
+  store.batcoin+=1; LS.set('batcoin',store.batcoin);
+  toast('이온 포션 완료! 바트코인 +1 적립 🪙');
+  render('home'); // 코인·미션 카드 갱신
+}
+function renderCalendar(){
+  const cal=$('#cal'); if(!cal) return;
+  const now=new Date(), y=now.getFullYear(), mo=now.getMonth();
+  const first=new Date(y,mo,1).getDay(), days=new Date(y,mo+1,0).getDate();
+  const dows=['일','월','화','수','목','금','토'];
+  let html=dows.map(d=>`<div class="dow">${d}</div>`).join('');
+  for(let i=0;i<first;i++) html+=`<div class="cell empty"></div>`;
+  for(let d=1;d<=days;d++){
+    const key=`${y}-${String(mo+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const done=store.attend.includes(key), today=d===now.getDate();
+    html+=`<div class="cell ${done?'done':''} ${today?'today':''}">${done?'🌱':d}</div>`;
+  }
+  cal.innerHTML=html;
+  // streak & month count
+  $('#stMonth').textContent=store.attend.filter(k=>k.startsWith(`${y}-${String(mo+1).padStart(2,'0')}`)).length;
+  let streak=0; const cur=new Date();
+  for(;;){ const k=`${cur.getFullYear()}-${String(cur.getMonth()+1).padStart(2,'0')}-${String(cur.getDate()).padStart(2,'0')}`;
+    if(store.attend.includes(k)){ streak++; cur.setDate(cur.getDate()-1);} else break; }
+  $('#stStreak').textContent=streak;
+}
+
+/* ---------- 날씨 ---------- */
+function initWeather(){
+  const layers={sunny:$('#bg-sunny'),cloudy:$('#bg-cloudy'),rainy:$('#bg-rainy')};
+  const fx={sg:$('#sunGlow'),mo:$('#motes'),ct:$('#cloudTint'),cb:$('#cloudBand'),rn:$('#rain')};
+  const META={sunny:{i:'☀️',t:'맑음 · 햇살 좋은 날'},cloudy:{i:'☁️',t:'흐림 · 차분한 날'},rainy:{i:'🌧️',t:'비 · 촉촉한 날'}};
+  // 입자/빗줄기 생성
+  if(fx.mo && !fx.mo.dataset.built){ fx.mo.dataset.built='1';
+    for(let i=0;i<14;i++){ const m=document.createElement('div'); m.className='mote'; m.style.left=Math.random()*100+'%';
+      const du=7+Math.random()*7; m.style.animationDuration=du+'s'; m.style.animationDelay=(-Math.random()*du)+'s'; fx.mo.appendChild(m);} }
+  if(fx.rn && !fx.rn.dataset.built){ fx.rn.dataset.built='1';
+    for(let i=0;i<55;i++){ const d=document.createElement('div'); d.className='drop-rain'; d.style.left=Math.random()*100+'%';
+      const du=.6+Math.random()*.5; d.style.animationDuration=du+'s'; d.style.animationDelay=(-Math.random()*du)+'s'; d.style.opacity=.3+Math.random()*.5; fx.rn.appendChild(d);} }
+  function set(kind){
+    store.weather=kind;
+    Object.keys(layers).forEach(k=>layers[k].classList.toggle('active',k===kind));
+    fx.sg.style.opacity=fx.mo.style.opacity=kind==='sunny'?'1':'0';
+    fx.ct.style.opacity=fx.cb.style.opacity=kind==='cloudy'?'1':'0';
+    fx.rn.style.opacity=kind==='rainy'?'1':'0';
+    $('#wIco').textContent=META[kind].i; $('#wText').textContent=META[kind].t;
+  }
+  const classify=m=>{ m=(m||'').toLowerCase(); if(/rain|drizzle|thunder/.test(m))return'rainy'; if(/cloud|overcast|mist|fog|haze/.test(m))return'cloudy'; return'sunny'; };
+  set('sunny');
+  if(!navigator.geolocation){ $('#hint').classList.add('show'); return; }
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    $('#hint').classList.remove('show');
+    const {latitude:lat,longitude:lon}=pos.coords;
+    if(WEATHER_API_KEY && WEATHER_API_KEY!=="YOUR_API_KEY_HERE"){
+      try{ const r=await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${WEATHER_API_KEY}`);
+        const d=await r.json(); set(classify(d.weather&&d.weather[0]&&d.weather[0].main)); return; }catch(e){}
+    }
+    const h=new Date().getHours(); const demo=h>=6&&h<11?'sunny':h>=11&&h<17?'cloudy':'rainy';
+    set(demo); $('#wText').textContent=META[demo].t+' (데모)';
+  }, ()=>{ set('sunny'); $('#hint').classList.add('show'); }, {timeout:8000});
+}
+
+/* ---------- 내 우영팟 (날씨 히어로 + 작물 관리) ---------- */
+ROUTES.mypot = ()=>{
+  const p = PLANTS[0];
+  return `${header('내 우영팟',`내가 키우는 작물 ${PLANTS.length}개`)}
+  <div class="list">
+    <div style="display:flex;gap:10px">
+      <button class="btn ghost" onclick="go('deviceManage')">📡 기기 관리</button>
+      <button class="btn" onclick="go('addPlant')">＋ 작물 등록</button>
+    </div>
+
+    ${PLANTS.map(pl=>`
+    <div class="card mk" onclick="go('plantDetail',{id:'${pl.id}'})">
+      <div class="th" style="width:60px;height:60px;font-size:28px;background:linear-gradient(135deg,${pl.tone}66,${pl.tone}22)">${pl.emoji}</div>
+      <div class="info">
+        <div class="title">${plantLabel(pl)} <small style="font-size:12px;color:var(--sub);font-weight:600">${pl.nick? pl.crop : ''}</small></div>
+        <div class="meta">📍 ${pl.place} · 심은 날 ${pl.planted}</div>
+        <div class="gauge-row" style="margin-top:8px">
+          <span class="gauge-label" style="font-size:11px">💧</span>
+          <div class="gauge" style="height:10px"><div class="gauge-fill" style="width:${pl.moisture}%"></div></div>
+          <span class="gauge-pct" style="font-size:11px">${pl.moisture}%</span>
+        </div>
+      </div>
+    </div>`).join('')}
+  </div>`;
+};
+
+
+/* ---------- 작물 상세 / 성장 모니터 ---------- */
+ROUTES.plantDetail = ({id})=>{
+  const p=PLANTS.find(x=>x.id===id)||PLANTS[0];
+  return `${header(plantLabel(p),'식물 성장 모니터')}
+  <div class="list">
+    <div class="card" style="text-align:center;background:linear-gradient(180deg,rgba(255,255,255,.7),rgba(214,228,198,.5))">
+      <div style="font-size:12px;font-weight:800;color:var(--secondary)">💡 조명 아래에서 자라는 중</div>
+      <div style="font-size:100px;margin:6px 0;filter:drop-shadow(0 10px 12px rgba(59,74,50,.25))">${p.emoji}</div>
+      <div style="font-size:20px;font-weight:900">${plantLabel(p)}</div>
+      <div style="font-size:13px;color:var(--sub);font-weight:600">${p.crop} · ${p.place}</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🌡️ 환경 정보</div>
+      <div class="env-bar">
+        <div class="env-cell"><div class="k">pH</div><div class="v">${p.ph}</div><div class="s">적정</div></div>
+        <div class="env-cell"><div class="k">온도</div><div class="v">${p.temp}℃</div><div class="s">적정</div></div>
+        <div class="env-cell"><div class="k">습도</div><div class="v">${p.humid}%</div><div class="s">적정</div></div>
+        <div class="env-cell"><div class="k">이온 수치</div><div class="v">${p.ion}</div><div class="s">적정</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🏷️ 식물 애칭 설정</div>
+      <div class="field"><label>애칭 (비워두면 작물명으로 표시)</label>
+        <input class="input" id="nickInput" maxlength="10" value="${p.nick||''}" placeholder="예: 초록이, 토미, 햇살이">
+        <div class="ex">애칭을 지으면 알림과 AI 메시지에서 더 친근하게 불러드려요.</div></div>
+      <button class="btn" onclick="savePlantNick('${p.id}')">애칭 저장</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🤖 AI 조언 <span class="ai-badge">AI</span></div>
+      <div class="ai-msg"><div class="ai-ava">🌻</div><div class="body">${plantLabel(p)}의 습도가 조금 낮아요. 오늘 이온 포션을 한 번 더 챙겨주시면 좋겠어요. 잎 색은 아주 건강합니다!</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📸 성장 기록</div>
+      <div class="notice">성장 사진을 등록하면 출석과 랭킹 점수에 반영돼요.</div>
+      <button class="btn sec" style="margin-top:12px" onclick="addPhoto()">📷 성장 사진 등록</button>
+    </div>
+  </div>`;
+};
+function savePlantNick(id){
+  const p=PLANTS.find(x=>x.id===id); const v=$('#nickInput').value.trim();
+  p.nick=v; savePlants(); toast(v?`애칭 "${v}" 저장 완료 🌱`:'작물명으로 표시할게요');
+  setTimeout(()=>render('plantDetail',{id}),300);
+}
+function addPhoto(){ markAttend(); store.batcoin+=1; LS.set('batcoin',store.batcoin); toast('성장 사진 등록! 바트코인 +1 🪙'); }
+
+/* ---------- 작물 등록 ---------- */
+ROUTES.addPlant = ()=>`${header('작물 등록','내 우영팟에 새 작물 추가')}
+  <div class="list">
+    <div class="field"><label>작물 이름 *</label><input class="input" id="f_crop" placeholder="예: 방울토마토, 상추, 백리향"></div>
+    <div class="field"><label>식물 애칭</label><input class="input" id="f_nick" maxlength="10" placeholder="예: 초록이 (선택)"><div class="ex">애칭은 나중에 상세 화면에서도 바꿀 수 있어요.</div></div>
+    <div class="field"><label>심은 날짜</label><input class="input" id="f_date" type="date"></div>
+    <div class="field"><label>재배 장소</label><input class="input" id="f_place" placeholder="예: 베란다, 주방 창가"></div>
+    <div class="field"><label>메모</label>
+      <div class="with-mic"><textarea class="input" id="f_memo" placeholder="작물에 대한 메모를 남겨보세요"></textarea>
+      <button class="bubble mic" onclick="voiceInput('f_memo',this)">🎤</button></div>
+      <div class="ex">🎤 버튼을 누르면 음성으로 입력할 수 있어요 (보조 입력).</div></div>
+    <button class="btn" onclick="saveNewPlant()">작물 등록하기</button>
+  </div>`;
+function saveNewPlant(){
+  const crop=$('#f_crop').value.trim(); if(!crop){ toast('작물 이름을 입력해 주세요'); return; }
+  const emojis={토마토:'🍅',상추:'🥬',백리향:'🌿',멜론:'🍈',귤:'🍊',콩:'🫘',딸기:'🍓',허브:'🌿'};
+  let emoji='🪴'; for(const k in emojis){ if(crop.includes(k)) emoji=emojis[k]; }
+  PLANTS.push({id:'p'+Date.now(), crop, nick:$('#f_nick').value.trim(), planted:$('#f_date').value||todayKey(),
+    place:$('#f_place').value.trim()||'미지정', moisture:60, ph:6.3, temp:24, humid:55, co2:'적정', ion:2.0, emoji, tone:'#9ac47a'});
+  savePlants(); toast('새 작물이 등록됐어요 🌱'); setTimeout(()=>tab('mypot'),400);
+}
+
+/* ---------- 스마트팜 기기 관리 ---------- */
+ROUTES.deviceManage = ()=>`${header('스마트팜 기기 관리','연결된 기기 1대')}
+  <div class="list">
+    <div class="card">
+      <div class="card-title">📡 우영팟 미니팜 #1 <span class="tag">연결됨</span></div>
+      <div class="env-bar">
+        <div class="env-cell"><div class="k">온도</div><div class="v">24.1℃</div><div class="s">적정</div></div>
+        <div class="env-cell"><div class="k">습도</div><div class="v">58%</div><div class="s">적정</div></div>
+        <div class="env-cell"><div class="k">햇빛/조도</div><div class="v">820lux</div><div class="s">적정</div></div>
+        <div class="env-cell"><div class="k">pH</div><div class="v">6.2</div><div class="s">적정</div></div>
+        <div class="env-cell"><div class="k">이산화탄소</div><div class="v">610ppm</div><div class="s">적정</div></div>
+        <div class="env-cell"><div class="k">이온 포션</div><div class="v">2.0</div><div class="s">적정</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">🎛️ 제어</div>
+      <div style="display:flex;gap:12px">
+        <button class="btn" onclick="toast('이온 포션을 공급했어요 💧')">🧪 이온 포션 공급</button>
+        <button class="btn sec" onclick="toast('조명을 켰어요 💡')">💡 조명 켜기</button>
+      </div>
+    </div>
+    <div class="notice">프로토타입에서는 실제 센서 대신 예시 데이터를 표시합니다.</div>
+  </div>`;
+
+/* ---------- 3D 가상 텃밭 ---------- */
+let simState={ crop:0, day:1, freq:'보통', level:'초보', type:'허브', diff:'쉬움' };
+ROUTES.garden3d = ()=>`
+  <div class="header"><div style="flex:1"><h1>🌱 3D 가상 텃밭</h1><div class="sub">온실 내부 & 제주풍 야외 · 사전 재배 시뮬레이션</div></div></div>
+  <div id="glwrap">
+    <canvas id="gl"></canvas>
+    <div class="view-toggle" id="viewToggle">
+      <button data-v="inside" class="on" onclick="set3DView('inside',this)">🏠 내부</button>
+      <button data-v="outside" onclick="set3DView('outside',this)">🌿 야외</button>
+    </div>
+    <div id="glFallback">🏡<div class="cap">제주풍 텃밭 (3D 로딩 대기 중)</div></div>
+  </div>
+  <div class="growth-panel">
+    <div class="card">
+      <div class="card-title">🌾 성장 일수 조절 <span class="tag" id="dayTag">1일차</span></div>
+      <div class="stage-now" id="stageNow">🌰</div>
+      <div style="text-align:center;font-size:14px;font-weight:800" id="stageLabel">씨앗 단계</div>
+      <input type="range" min="1" max="30" value="1" class="slider" id="daySlider">
+      <div class="stage-badges"><span>1일</span><span>7일</span><span>14일</span><span>21일</span><span>30일</span></div>
+    </div>
+
+    <div class="card env-panel">
+      <div class="card-title">⚙️ 환경 설정</div>
+      <div class="field" style="margin-bottom:12px"><label>이온 포션 가능 빈도</label>
+        <div class="seg" data-key="freq">${['드묾','보통','자주'].map(v=>`<button class="${v==='보통'?'on':''}" onclick="setSeg('freq','${v}',this)">${v}</button>`).join('')}</div></div>
+      <div class="field" style="margin-bottom:12px"><label>재배 경험</label>
+        <div class="seg" data-key="level">${['초보','보통','능숙'].map(v=>`<button class="${v==='초보'?'on':''}" onclick="setSeg('level','${v}',this)">${v}</button>`).join('')}</div></div>
+      <div class="field" style="margin-bottom:12px"><label>원하는 작물 유형</label>
+        <div class="seg" data-key="type">${['허브','열매','잎채소'].map(v=>`<button class="${v==='허브'?'on':''}" onclick="setSeg('type','${v}',this)">${v}</button>`).join('')}</div></div>
+      <div class="field" style="margin-bottom:0"><label>관리 난이도 선호</label>
+        <div class="seg" data-key="diff">${['쉬움','보통','도전'].map(v=>`<button class="${v==='쉬움'?'on':''}" onclick="setSeg('diff','${v}',this)">${v}</button>`).join('')}</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🌿 추천 작물 & 생존율 비교 <span class="ai-badge">AI</span></div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        ${SIM_CROPS.map((c,i)=>`
+        <div onclick="pickCrop(${i})" id="simc${i}" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:16px;background:${i===0?'rgba(127,166,106,.15)':'rgba(255,255,255,.55)'};border:1.5px solid ${i===0?'var(--primary)':'transparent'}">
+          <div class="grade ${c.grade}">${c.grade}</div>
+          <div style="font-size:26px">${c.emoji}</div>
+          <div style="flex:1"><div style="font-size:15px;font-weight:800">${c.name} ${c.real?'':'<span style="font-size:10px;color:#C06A4A">가상 재배 전용</span>'}</div>
+          <div style="font-size:11.5px;color:var(--sub);font-weight:600;line-height:1.4">${c.note}</div></div>
+        </div>`).join('')}
+      </div>
+    </div>
+
+    <button class="btn" style="margin-bottom:4px" onclick="go('order')">🚚 이 작물 실물 주문하기</button>
+  </div>`;
+
+AFTER.garden3d = (el)=>{
+  const slider=$('#daySlider',el);
+  slider.addEventListener('input',()=>{ simState.day=+slider.value; updateStage(); });
+  updateStage();
+  init3D();
+};
+function setSeg(key,val,btn){ simState[key]=val; btn.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); }
+function pickCrop(i){
+  simState.crop=i;
+  SIM_CROPS.forEach((c,idx)=>{ const e=$('#simc'+idx); if(!e)return;
+    e.style.background = idx===i?'rgba(127,166,106,.15)':'rgba(255,255,255,.55)';
+    e.style.borderColor = idx===i?'var(--primary)':'transparent'; });
+  updateStage(); update3DCropColor();
+}
+function updateStage(){
+  const d=simState.day;
+  let emo,lab; if(d<=3){emo='🌰';lab='씨앗 단계';} else if(d<=10){emo='🌱';lab='초기 성장 단계';}
+  else if(d<=17){emo='🌿';lab='잎 성장 단계';} else if(d<=25){emo='🌸';lab='개화·열매 준비 단계';} else {emo='🍅';lab='수확 가능 단계';}
+  const c=SIM_CROPS[simState.crop];
+  if(d>25){ emo=c.emoji; }
+  const dt=$('#dayTag'), sn=$('#stageNow'), sl=$('#stageLabel');
+  if(dt) dt.textContent=d+'일차'; if(sn) sn.textContent=emo; if(sl) sl.textContent=`${c.name} · ${lab}`;
+  update3DGrowth();
+}
+function voiceInput(id,btn){
+  btn.classList.add('rec'); toast('🎙️ 음성 인식 중…');
+  const samples=['오늘 아침 잎 상태가 아주 좋아요.','물을 주고 나니 생기가 도는 것 같아요.','햇빛이 잘 드는 자리로 옮겼습니다.'];
+  setTimeout(()=>{ btn.classList.remove('rec'); const t=$('#'+id);
+    t.value=(t.value?t.value+' ':'')+samples[Math.floor(Math.random()*samples.length)];
+    toast('음성이 텍스트로 변환됐어요. 확인 후 저장하세요.'); },1400);
+}
+
+/* ---------- 실물 주문 ---------- */
+ROUTES.order = ()=>{ const c=SIM_CROPS[simState.crop];
+  return `${header('실물 주문',`${c.name} · 생존율 ${c.grade}등급`)}
+  <div class="list">
+    <div class="card" style="text-align:center">
+      <div style="font-size:70px">${c.emoji}</div>
+      <div style="font-size:20px;font-weight:900">${c.name}</div>
+      <div style="display:inline-flex;align-items:center;gap:8px;margin-top:6px"><span class="grade ${c.grade}">${c.grade}</span><span style="font-size:12px;color:var(--sub);font-weight:600">${c.note}</span></div>
+    </div>
+    ${c.grade==='D'?`<div class="notice" style="color:#C06A4A">이 작물은 D등급으로 실물 주문이 어려워요. A·B·C 등급 작물을 추천드려요.</div>`:''}
+    <div class="card">
+      <div class="card-title">📦 주문 항목 선택</div>
+      <div class="seg" style="flex-direction:column;gap:8px">
+        ${['씨앗','묘목','화분','흙','기본 재배 키트','스마트팜 키트'].map((o,i)=>`<button class="${i===0?'on':''}" onclick="this.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('on'));this.classList.add('on')">${o}</button>`).join('')}
+      </div>
+    </div>
+    <button class="btn" ${c.grade==='D'?'style="opacity:.5" disabled':''} onclick="toast('주문 신청이 접수됐어요 🚚')">주문 신청하기</button>
+  </div>`;
+};
+
+/* ---------- 실버 마켓 ---------- */
+ROUTES.market = ()=>`
+  <div class="header"><div style="flex:1"><h1>🧺 실버 마켓</h1><div class="sub">${store.region} · 우리 동네 직거래</div></div>
+    <button class="bubble" onclick="go('marketAdd')">＋</button></div>
+  <div class="searchbar"><input placeholder="🔍 작물을 검색해 보세요" oninput="filterMarket(this.value)"></div>
+  <div class="filters">
+    ${['전체','판매중','나눔','예약중'].map((f,i)=>`<div class="chip ${i===0?'on':''}" onclick="marketFilter('${f}',this)">${f}</div>`).join('')}
+  </div>
+  <div class="list" id="marketList">${marketCards(MARKET)}</div>`;
+function marketCards(list){
+  if(!list.length) return `<div class="empty"><div class="e">🧺</div>조건에 맞는 작물이 없어요</div>`;
+  const st={sell:['sell','판매중'],rsv:['rsv','예약중'],done:['done','거래완료']};
+  return list.map(m=>`
+    <div class="card mk" onclick="go('marketDetail',{id:'${m.id}'})">
+      <div class="th" style="background:linear-gradient(135deg,${m.tone},#fff)">${m.emoji}</div>
+      <div class="info">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <span class="stbadge ${st[m.status][0]}">${st[m.status][1]}</span>
+          ${m.free?'<span class="stbadge sell">나눔</span>':''}
+        </div>
+        <div class="title">${m.title}</div>
+        <div class="meta">📍 ${m.place} · 🕘 ${m.time}</div>
+        <div class="price">${m.free?'<span class="free">무료 나눔</span>':'🪙 '+m.price+' 바트코인'}</div>
+      </div>
+    </div>`).join('');
+}
+let marketFilterMode='전체', marketQuery='';
+function applyMarket(){
+  let l=MARKET.filter(m=>{
+    const okF = marketFilterMode==='전체' || (marketFilterMode==='판매중'&&m.status==='sell') || (marketFilterMode==='나눔'&&m.free) || (marketFilterMode==='예약중'&&m.status==='rsv');
+    const okQ = !marketQuery || m.title.includes(marketQuery);
+    return okF&&okQ; });
+  $('#marketList').innerHTML=marketCards(l);
+}
+function marketFilter(f,el){ marketFilterMode=f; el.parentElement.querySelectorAll('.chip').forEach(c=>c.classList.remove('on')); el.classList.add('on'); applyMarket(); }
+function filterMarket(q){ marketQuery=q.trim(); applyMarket(); }
+
+ROUTES.marketDetail = ({id})=>{ const m=MARKET.find(x=>x.id===id);
+  const st={sell:'판매중',rsv:'예약중',done:'거래완료'};
+  return `${header('판매글','실버 마켓')}
+  <div>
+    <div class="thumb" style="background:linear-gradient(135deg,${m.tone},#fff);aspect-ratio:16/10;font-size:90px;border-radius:0">${m.emoji}</div>
+    <div class="list">
+      <div style="display:flex;gap:8px;align-items:center"><span class="stbadge ${m.status==='sell'?'sell':m.status==='rsv'?'rsv':'done'}">${st[m.status]}</span>${m.free?'<span class="stbadge sell">나눔</span>':''}</div>
+      <div style="font-size:20px;font-weight:900;line-height:1.3">${m.title}</div>
+      <div style="font-size:26px;font-weight:900;color:var(--secondary)">${m.free?'<span style="color:var(--primary-d)">무료 나눔</span>':'🪙 '+m.price+' 바트코인'}</div>
+      <div class="card">
+        <div class="mk" style="align-items:center"><div class="p-ava" style="background:var(--primary-l)">👤</div>
+          <div style="flex:1"><div style="font-weight:800">판매자: ${m.seller}</div><div style="font-size:12px;color:var(--sub);font-weight:600">${store.region}</div></div>
+          <button class="btn ghost" style="width:auto;padding:9px 16px" onclick="toast('단골로 등록했어요 ⭐')">⭐ 단골 맺기</button></div>
+      </div>
+      <div class="card">
+        <div class="card-title">📝 작물 설명</div>
+        <div style="font-size:14.5px;line-height:1.6;font-weight:500">${m.desc}</div>
+      </div>
+      <div class="card">
+        <div class="card-title">📍 거래 정보</div>
+        <div style="font-size:14px;line-height:1.9;font-weight:600"><div>희망 장소 · ${m.place}</div><div>가능 시간 · ${m.time}</div><div>거래 방식 · 우리 동네 직거래</div></div>
+      </div>
+      <button class="btn" onclick="toast('실버 톡을 시작해요 💬')">💬 실버 톡으로 문의하기</button>
+    </div>
+  </div>`;
+};
+
+ROUTES.marketAdd = ()=>`${header('판매글 등록','실버 마켓')}
+  <div class="list">
+    <div class="field"><label>사진 첨부 * (최대 10장)</label>
+      <div style="display:flex;gap:10px"><div class="thumb" style="width:80px;height:80px;background:rgba(184,138,90,.15);font-size:30px" onclick="toast('사진을 첨부했어요 📷')">＋</div>
+      <div class="thumb" style="width:80px;height:80px;background:linear-gradient(135deg,#f4c7bb,#fff)">🍅</div></div></div>
+    <div class="field"><label>글 제목 *</label><input class="input" placeholder="예: 오늘 아침에 수확한 감자입니다"></div>
+    <div class="field"><label>바트코인 가격</label><input class="input" type="number" placeholder="예: 5" id="mprice"></div>
+    <div class="field"><div class="checkbox"><input type="checkbox" id="mfree" onchange="if(this.checked)document.getElementById('mprice').value=0"><label style="margin:0">무료 나눔으로 등록 (0 바트코인)</label></div></div>
+    <div class="field"><label>작물 상태 및 설명</label>
+      <div class="with-mic"><textarea class="input" id="mdesc" placeholder="수확 시기, 재배 방식, 보관 방법 등"></textarea>
+      <button class="bubble mic" onclick="voiceInput('mdesc',this)">🎤</button></div></div>
+    <div class="field"><label>거래 희망 장소</label><input class="input" placeholder="예: ○○동 주민센터 앞"></div>
+    <div class="field"><label>거래 가능 시간</label><input class="input" placeholder="예: 오전 9시~12시"></div>
+    <div class="field"><div class="checkbox"><input type="checkbox"><label style="margin:0">정기 꾸러미 구독으로도 제공하기</label></div></div>
+    <button class="btn" onclick="toast('판매글이 등록됐어요 🧺');setTimeout(()=>tab('market'),400)">등록하기</button>
+    <div class="notice">프로토타입에서는 실제 GPS 검증, 결제, 배송은 제공하지 않습니다.</div>
+  </div>`;
+
+/* ---------- 실버 소셜 ---------- */
+ROUTES.social = ()=>`
+  <div class="header"><div style="flex:1"><h1>💬 실버 소셜</h1><div class="sub">수눌음 이웃들의 우영팟 이야기</div></div>
+    <button class="bubble" onclick="go('cooking')" title="쿠킹 클래스">🍳</button>
+    <button class="bubble" onclick="go('socialWrite')">✎</button></div>
+  <div class="list" id="feed">${SOCIAL.map(postCard).join('')}</div>`;
+function postCard(s){
+  return `<div class="card post" id="post-${s.id}">
+    <div class="p-head"><div class="p-ava" style="background:${s.tone}">👤</div>
+      <div style="flex:1"><div class="nm">${s.author}</div><div class="mt">${s.crop} · 방금 전</div></div></div>
+    <div class="p-text">${s.text}</div>
+    <div class="p-photo" style="background:linear-gradient(135deg,${s.tone},#fff)">${s.emoji}</div>
+    <div class="p-actions">
+      <div class="p-act ${s.liked?'liked':''}" id="like-${s.id}" onclick="toggleLike('${s.id}')"><span>${s.liked?'❤️':'🤍'}</span><span id="hc-${s.id}">${s.hearts}</span></div>
+      <div class="p-act"><span>💬</span><span>${s.comments.length}</span></div>
+      <div class="p-act" style="margin-left:auto" onclick="toast('응원을 보냈어요 💚')"><span>💚 응원</span></div>
+    </div>
+    <div style="margin-top:6px">
+      ${s.comments.map(c=>`<div class="comment"><div class="c-ava">${c.ai?'🌻':'👵'}</div>
+        <div class="c-bubble"><span class="who">${c.author}</span>${c.ai?'<span class="ai-badge">AI</span> ':''}${c.text}</div></div>`).join('')}
+    </div>
+  </div>`;
+}
+function toggleLike(id){ const s=SOCIAL.find(x=>x.id===id); s.liked=!s.liked; s.hearts+=s.liked?1:-1;
+  $('#hc-'+id).textContent=s.hearts; const el=$('#like-'+id); el.classList.toggle('liked',s.liked);
+  el.querySelector('span').textContent=s.liked?'❤️':'🤍'; }
+
+ROUTES.socialWrite = ()=>`${header('게시글 작성','실버 소셜')}
+  <div class="list">
+    <div class="field"><label>사진</label><div class="thumb" style="width:100px;height:100px;background:rgba(127,166,106,.12);font-size:34px" onclick="toast('사진을 첨부했어요 📷')">📷 ＋</div></div>
+    <div class="field"><label>내용</label>
+      <div class="with-mic"><textarea class="input" id="swtext" style="min-height:140px" placeholder="오늘 우영팟 이야기를 들려주세요"></textarea>
+      <button class="bubble mic" onclick="voiceInput('swtext',this)">🎤</button></div>
+      <div class="ex">🎤 음성으로도 작성할 수 있어요. AI 텃밭친구가 응원 댓글을 남겨드려요.</div></div>
+    <button class="btn" onclick="postSocial()">게시하기</button>
+  </div>`;
+function postSocial(){
+  const t=$('#swtext').value.trim(); if(!t){ toast('내용을 입력해 주세요'); return; }
+  SOCIAL.unshift({id:'s'+Date.now(), author:store.nickname, crop:'나의 우영팟 기록', text:t, hearts:0, tone:'#cfe6bf', emoji:'🌱', liked:false,
+    comments:[{author:'AI 텃밭친구', text:'기록을 남겨주셔서 고마워요! 오늘도 멋진 하루 보내세요 🌻', ai:true}]});
+  markAttend(); toast('게시글이 올라갔어요 💬'); setTimeout(()=>tab('social'),400);
+}
+
+/* ---------- 쿠킹 클래스 ---------- */
+ROUTES.cooking = ()=>`${header('수눌음 클럽 쿠킹 클래스','수확 작물 기반 소모임')}
+  <div class="list">
+    <div class="notice">이번 주 같은 작물을 수확한 이웃들을 AI가 자동으로 모아 소모임을 추천해요.</div>
+    ${[['🍛','이번 주 수확한 토마토로 만드는 건강 카레','토마토 수확 시니어 4명','토','오후 2시'],
+       ['🥗','제주식 쌈밥 모임','상추·쌈채소 수확 시니어 6명','일','오전 11시'],
+       ['🍊','청귤청 담그기 클래스','청귤 수확 시니어 3명','수','오후 3시']].map(c=>`
+    <div class="card">
+      <div class="mk"><div class="th" style="background:linear-gradient(135deg,var(--primary-l),#fff)">${c[0]}</div>
+        <div class="info"><div class="title">${c[1]}</div><div class="meta">👥 ${c[2]}</div><div class="meta">📅 ${c[3]}요일 ${c[4]}</div></div></div>
+      <button class="btn ghost" style="margin-top:12px" onclick="toast('참여 신청했어요 🍳')">참여 신청</button>
+    </div>`).join('')}
+    <div class="card" style="background:linear-gradient(135deg,rgba(184,138,90,.15),rgba(127,166,106,.1))">
+      <div class="card-title">🎟️ 수눌음 클럽 멤버십</div>
+      <div style="font-size:13.5px;line-height:1.6;font-weight:600">‘우영팟 케어 & 수눌음 클럽’ 정기 구독 회원은 월 2회 쿠킹 클래스를 무료로 참여할 수 있어요.</div>
+      <button class="btn" style="margin-top:12px" onclick="go('subscribe')">구독 안내 보기</button>
+    </div>
+  </div>`;
+
+/* ---------- 랭킹 ---------- */
+ROUTES.ranking = ()=>`${header('랭킹','성실 돌봄 기반 랭킹')}
+  <div class="list">
+    <div class="card" style="background:linear-gradient(135deg,#7FA66A,#5E8A4C);color:#fff;text-align:center">
+      <div style="font-size:15px;font-weight:700;opacity:.9">이달의 우리 동네 챔피언</div>
+      <div style="font-size:52px;margin:6px 0">🏆</div>
+      <div style="font-size:22px;font-weight:900">${store.nickname}님, 애월읍 3위!</div>
+      <div style="font-size:13px;opacity:.9;margin-top:4px">이번 주 돌봄 점수 910점</div>
+    </div>
+    <div class="filters" style="padding:0">
+      ${['우리 동네 돌봄','성실 텃밭','수눌음 나눔','인기 작물'].map((f,i)=>`<div class="chip ${i===0?'on':''}" onclick="this.parentElement.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));this.classList.add('on')">${f}</div>`).join('')}
+    </div>
+    <div class="card" style="padding:8px 0">
+      ${RANKING.map(r=>`
+      <div style="display:flex;align-items:center;gap:14px;padding:13px 18px;${r.me?'background:rgba(127,166,106,.14)':''}">
+        <div style="font-size:19px;font-weight:900;width:30px;color:${r.rank<=3?'var(--secondary)':'var(--sub)'}">${r.rank<=3?['🥇','🥈','🥉'][r.rank-1]:r.rank}</div>
+        <div class="p-ava" style="width:36px;height:36px;font-size:18px;background:var(--primary-l)">👤</div>
+        <div style="flex:1"><div style="font-weight:800;font-size:15px">${r.name}</div><div style="font-size:11.5px;color:var(--sub);font-weight:600">${r.region}</div></div>
+        <div style="font-weight:900;color:var(--primary-d)">${r.score}점</div>
+      </div>`).join('')}
+    </div>
+    <div class="card">
+      <div class="card-title">🎖️ 디지털 성취 배지</div>
+      <div style="display:flex;gap:14px;font-size:36px;justify-content:space-around">
+        <div style="text-align:center"><div>🌱</div><div style="font-size:10px;font-weight:700;color:var(--sub)">첫 수확</div></div>
+        <div style="text-align:center"><div>🔥</div><div style="font-size:10px;font-weight:700;color:var(--sub)">7일 연속</div></div>
+        <div style="text-align:center"><div>🤝</div><div style="font-size:10px;font-weight:700;color:var(--sub)">나눔왕</div></div>
+        <div style="text-align:center;opacity:.35"><div>👑</div><div style="font-size:10px;font-weight:700;color:var(--sub)">챔피언</div></div>
+      </div>
+    </div>
+    <div class="notice">상위 랭커 시니어에게는 바트코인 추가 보상과 구독료 환급 혜택이 제공돼요.</div>
+  </div>`;
+
+/* ---------- 출석 달력 ---------- */
+ROUTES.attendance = ()=>`${header('식물 돌보기 출석','매일의 돌봄 기록')}
+  <div class="list">
+    <div class="streak">
+      <div class="box"><div class="v" id="stStreak">0</div><div class="l">연속 돌봄</div></div>
+      <div class="box"><div class="v" id="stMonth">0</div><div class="l">이번 달 돌봄</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">📅 이번 달 출석</div>
+      <div class="cal" id="cal"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">🎁 출석 보상</div>
+      <div style="font-size:13.5px;line-height:1.6;font-weight:600">연속 돌봄 7일 달성 시 바트코인 +5, 랭킹 점수가 추가돼요.</div>
+    </div>
+    <div class="notice">단순 접속이 아니라 이온 포션·성장 사진·미션 완료 등 실제 돌봄 행동을 기준으로 출석이 기록돼요.</div>
+  </div>`;
+AFTER.attendance = ()=> renderCalendar();
+
+/* ---------- 바트코인 교환 ---------- */
+let exStep=10;
+ROUTES.exchange = ()=>`${header('바트코인 교환','탐나는전으로 교환하기')}
+  <div class="list">
+    <div class="ex-amount">
+      <div style="font-size:13px;font-weight:800;color:var(--sub)">현재 보유</div>
+      <div class="big">🪙 ${store.batcoin}</div>
+      <div class="eq">교환 가능 금액 ₩${store.tamnaCoin().toLocaleString()} (1바트코인 = 100원)</div>
+    </div>
+    <div class="card">
+      <div class="card-title">🔄 교환 신청</div>
+      <div class="stepper">
+        <button class="bubble b" onclick="exAdj(-10)">－</button>
+        <div class="n" id="exNum">10</div>
+        <button class="bubble b" onclick="exAdj(10)">＋</button>
+      </div>
+      <div style="text-align:center;font-size:15px;font-weight:800;color:var(--primary-d)" id="exEq">= 탐나는전 ₩1,000</div>
+      <button class="btn" style="margin-top:16px" onclick="doExchange()">교환 신청하기</button>
+      <div class="notice" style="margin-top:12px">최소 10바트코인부터 10단위로 교환할 수 있어요. 활동·판매 보상 바트코인만 교환 가능합니다.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">📜 교환 내역</div>
+      <div id="exHist" style="font-size:13.5px;color:var(--sub);font-weight:600">아직 교환 내역이 없어요.</div>
+    </div>
+  </div>`;
+AFTER.exchange=()=>{ exStep=10; };
+function exAdj(d){ exStep=Math.max(10,Math.min(store.batcoin - (store.batcoin%10), exStep+d)); if(exStep<10)exStep=10;
+  $('#exNum').textContent=exStep; $('#exEq').textContent='= 탐나는전 ₩'+(exStep*100).toLocaleString(); }
+function doExchange(){
+  if(store.batcoin<10){ toast('교환은 최소 10바트코인부터 가능해요'); return; }
+  if(exStep>store.batcoin){ toast('보유 바트코인이 부족해요'); return; }
+  store.batcoin-=exStep; LS.set('batcoin',store.batcoin);
+  toast(`${exStep}바트코인 → ₩${(exStep*100).toLocaleString()} 교환 신청 완료`);
+  const h=$('#exHist'); h.innerHTML=`${todayKey()} · ${exStep}바트코인 → ₩${(exStep*100).toLocaleString()} (신청 접수)`;
+  setTimeout(()=>render('exchange'),600);
+}
+
+/* ---------- 구독 소개 ---------- */
+ROUTES.subscribe = ()=>`${header('구독 서비스','투 트랙 구독')}
+  <div class="list">
+    <div class="sub-card senior">
+      <h3>🌱 우영팟 케어 & 수눌음 클럽</h3>
+      <div class="price">시니어 생산자형</div>
+      <ul>
+        <li>홈 스마트팜 키트 렌탈 + AI 재배 가이드</li>
+        <li>매일 건강·재배 미션 제공</li>
+        <li>월 2회 수눌음 쿠킹 클래스 참여권</li>
+        <li>게이미피케이션 리그 참여</li>
+        <li>상위 랭킹 시 구독료 환급 또는 바트코인 보상</li>
+        <li>3D 사전 재배 시뮬레이션 & 실물 딜리버리</li>
+      </ul>
+      <button class="btn" onclick="toast('구독 신청 화면으로 연결돼요')">구독 신청</button>
+    </div>
+    <div class="sub-card consumer">
+      <h3>📦 제주 우영팟 제철 꾸러미</h3>
+      <div class="price">일반 소비자형</div>
+      <ul>
+        <li>지정한 시니어 생산자와 매칭</li>
+        <li>제철 쌈채소·허브·로컬 농산물 꾸러미</li>
+        <li>성장 사진과 AI 성장 일기 제공</li>
+        <li>편지 형태의 스토리 동봉</li>
+        <li>시니어 생산 활동 후원 경험</li>
+      </ul>
+      <button class="btn" onclick="toast('구독 신청 화면으로 연결돼요')">구독 신청</button>
+    </div>
+    <div class="card">
+      <div class="card-title">🧺 이번 주 샘플 꾸러미</div>
+      <div class="grid2" style="padding:0">
+        ${[['🥬','제철 쌈채소'],['🌿','제주 허브 3종'],['🍊','청귤 한 봉지'],['🫘','제주 푸른콩']].map(s=>`
+        <div style="text-align:center;padding:14px;border-radius:16px;background:rgba(127,166,106,.1)"><div style="font-size:34px">${s[0]}</div><div style="font-size:12.5px;font-weight:700;margin-top:4px">${s[1]}</div></div>`).join('')}
+      </div>
+    </div>
+    <div class="notice">프로토타입에서는 상품 소개와 신청 버튼만 제공하며 실제 결제·배송은 없습니다.</div>
+  </div>`;
+
+/* ---------- 마이페이지 / 프로필 ---------- */
+ROUTES.profile = ()=>`${header('마이페이지','프로필 설정')}
+  <div class="list">
+    <div class="card" style="text-align:center">
+      <div class="p-ava" style="width:88px;height:88px;font-size:44px;margin:0 auto;background:linear-gradient(135deg,var(--primary-l),#fff)">👤</div>
+      <div style="font-size:20px;font-weight:900;margin-top:10px" id="curNick">${store.nickname}</div>
+      <div style="font-size:13px;color:var(--sub);font-weight:600">${store.region} · ${store.role}</div>
+    </div>
+    <div class="card">
+      <div class="card-title">✏️ 닉네임 변경</div>
+      <div class="field" style="margin-bottom:0"><label>새 닉네임 (최대 10자)</label>
+        <input class="input" id="nickField" maxlength="10" value="${store.nickname}" placeholder="우영팟 사용자">
+        <div class="ex">닉네임은 홈 인사말, 소셜, 마켓, 랭킹에 즉시 반영돼요.</div></div>
+      <button class="btn" style="margin-top:14px" onclick="saveNick()">저장</button>
+    </div>
+    <div class="card">
+      <div class="card-title">⚙️ 설정</div>
+      <div style="display:flex;flex-direction:column">
+        ${['거주 동네 변경','프로필 이미지 설정','알림 설정','개인정보 설정'].map(s=>`
+        <div style="display:flex;justify-content:space-between;padding:14px 0;border-bottom:1px dashed rgba(184,138,90,.2);font-size:15px;font-weight:600" onclick="toast('${s} 화면으로 이동해요')">${s}<span style="color:var(--sub)">›</span></div>`).join('')}
+      </div>
+    </div>
+  </div>`;
+function saveNick(){
+  const v=$('#nickField').value.trim()||'우영팟 사용자';
+  store.nickname=v; LS.set('nickname',v); $('#curNick').textContent=v;
+  toast(`닉네임이 "${v}"(으)로 변경됐어요`);
+}
+
+/* =============================================================
+   3D 텃밭 (Three.js)
+   ============================================================= */
+let three={ renderer:null, scene:null, camera:null, wrap:null,
+            outside:null, inside:null, cropOutside:null, cropInside:null,
+            view:'inside', t:0, raf:null, ready:false };
+function init3D(){
+  const wrap=document.getElementById('glwrap'); const canvas=document.getElementById('gl');
+  if(typeof THREE==='undefined'){ document.getElementById('glFallback').style.display='flex'; return; }
+  if(three.raf) cancelAnimationFrame(three.raf);          // 재진입 시 이전 루프 정리
+  const view = three.view || 'inside';                    // 이전에 고른 뷰 유지
+  const W=wrap.clientWidth, H=wrap.clientHeight;
+  // 화면이 아직 display:none(레이아웃 0) 이면 크기가 잡힐 때까지 대기
+  if(!W || !H){ three.raf=requestAnimationFrame(init3D); return; }
+  const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2)); renderer.setSize(W,H);
+  const scene=new THREE.Scene(); scene.fog=new THREE.Fog(0xdff0f5,18,48);
+  const camera=new THREE.PerspectiveCamera(45,W/H,0.1,120);
+
+  scene.add(new THREE.AmbientLight(0xffffff,0.72));
+  const sun=new THREE.DirectionalLight(0xfff2c4,0.9); sun.position.set(6,12,6); scene.add(sun);
+
+  // 공용 하늘 반구 (온실 유리 너머로도 보임)
+  const sky=new THREE.Mesh(new THREE.SphereGeometry(52,16,16), new THREE.MeshBasicMaterial({color:0xbfe3ef,side:THREE.BackSide}));
+  scene.add(sky);
+
+  const out=buildOutside(), ins=buildInside();
+  scene.add(out.group); scene.add(ins.group);
+
+  three={ renderer, scene, camera, wrap,
+          outside:out.group, inside:ins.group,
+          cropOutside:out.crop, cropInside:ins.crop,
+          view, t:0, raf:null, ready:true };
+
+  update3DGrowth();
+  set3DView(view);
+
+  (function loop(){
+    // 뷰포트 크기가 바뀌면(회전·표시 전환) 렌더러 동기화
+    const cw=wrap.clientWidth, ch=wrap.clientHeight;
+    if(cw && ch && (cw!==renderer.domElement.width/renderer.getPixelRatio() || ch!==renderer.domElement.height/renderer.getPixelRatio())){
+      renderer.setSize(cw,ch); camera.aspect=cw/ch; camera.updateProjectionMatrix();
+    }
+    three.t += 0.005; const t=three.t;
+    if(three.view==='outside'){
+      camera.position.set(Math.sin(t)*11, 5, Math.cos(t)*11); camera.lookAt(0,1.2,0);
+    }else{
+      // 온실 입구에서 재배 벤치를 바라보며 좌우로 부드럽게 스윙 (벽 안쪽 유지)
+      const a=Math.sin(t*0.5)*0.6;
+      camera.position.set(Math.sin(a)*5.2, 2.8, Math.cos(a)*5.2); camera.lookAt(0,1.5,-0.3);
+    }
+    renderer.render(scene,camera); three.raf=requestAnimationFrame(loop);
+  })();
+
+  window.addEventListener('resize', ()=>{ if(!three.ready)return; const w=wrap.clientWidth,h=wrap.clientHeight; renderer.setSize(w,h); camera.aspect=w/h; camera.updateProjectionMatrix(); });
+}
+
+/* ---------- 야외 씬 (제주풍 텃밭) ---------- */
+function buildOutside(){
+  const g=new THREE.Group();
+  // 잔디 바닥
+  const ground=new THREE.Mesh(new THREE.CircleGeometry(20,40), new THREE.MeshLambertMaterial({color:0x9ac46a}));
+  ground.rotation.x=-Math.PI/2; g.add(ground);
+  // 텃밭 흙 구역
+  const soil=new THREE.Mesh(new THREE.BoxGeometry(6,0.4,3.2), new THREE.MeshLambertMaterial({color:0x8a6a4a}));
+  soil.position.set(0,0.2,1.5); g.add(soil);
+  // 낮은 오름 (뒤쪽 언덕)
+  const oreum=(x,z,s,c)=>{ const m=new THREE.Mesh(new THREE.SphereGeometry(s,20,16,0,Math.PI*2,0,Math.PI/2), new THREE.MeshLambertMaterial({color:c})); m.position.set(x,0,z); m.scale.y=0.5; g.add(m); };
+  oreum(-7,-9,4,0x8ab86a); oreum(6,-11,5.5,0x7ba85e); oreum(0,-13,4.5,0x93bd74);
+  // 제주 토속 집
+  const house=new THREE.Group();
+  const body=new THREE.Mesh(new THREE.BoxGeometry(3,1.8,2.4), new THREE.MeshLambertMaterial({color:0xf2ead6})); body.position.y=0.9; house.add(body);
+  const roof=new THREE.Mesh(new THREE.ConeGeometry(2.6,1.3,4), new THREE.MeshLambertMaterial({color:0xc9a15a})); roof.position.y=2.45; roof.rotation.y=Math.PI/4; house.add(roof);
+  house.position.set(-5,0,-3.5); house.rotation.y=0.5; g.add(house);
+  // 현무암 돌담
+  const stoneMat=new THREE.MeshLambertMaterial({color:0x4a4a4a});
+  for(let i=0;i<9;i++){ const s=new THREE.Mesh(new THREE.BoxGeometry(0.7,0.55,0.6),stoneMat);
+    s.position.set(-4.5+i*0.75, 0.28+(i%2)*0.12, 2.6); s.rotation.y=(i*0.13)%0.4; g.add(s); }
+  // 귤나무
+  const tree=new THREE.Group();
+  const trunk=new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.24,1.4,8), new THREE.MeshLambertMaterial({color:0x8a5a3a})); trunk.position.y=0.7; tree.add(trunk);
+  const crown=new THREE.Mesh(new THREE.SphereGeometry(1.1,16,14), new THREE.MeshLambertMaterial({color:0x5a9a4a})); crown.position.y=1.9; tree.add(crown);
+  for(let i=0;i<7;i++){ const o=new THREE.Mesh(new THREE.SphereGeometry(0.14,8,8), new THREE.MeshLambertMaterial({color:0xf5a623}));
+    const a=i*0.9, r=0.6+((i*0.17)%0.5); o.position.set(Math.cos(a)*r,1.6+((i*0.11)%0.7),Math.sin(a)*r); tree.add(o); }
+  tree.position.set(5,0,-2); g.add(tree);
+  // 작물 (성장에 따라 갱신)
+  const crop=new THREE.Group(); crop.position.set(0,0.4,1.5); g.add(crop);
+  return {group:g, crop};
+}
+
+/* ---------- 내부 씬 (스마트팜 온실 내부) ---------- */
+function buildInside(){
+  const g=new THREE.Group();
+  const HW=6, HD=6, HT=5;   // 방 반너비/반깊이/높이
+  const frameMat=new THREE.MeshLambertMaterial({color:0xf4f4ec});
+  const glassMat=new THREE.MeshLambertMaterial({color:0xbfe6da, transparent:true, opacity:0.16, side:THREE.DoubleSide});
+
+  // 바닥 (콘크리트 톤)
+  const floor=new THREE.Mesh(new THREE.BoxGeometry(HW*2,0.2,HD*2), new THREE.MeshLambertMaterial({color:0xded7c4}));
+  floor.position.y=-0.1; g.add(floor);
+  // 바닥 격자 라인 느낌 (얇은 판 몇 줄)
+  for(let i=-2;i<=2;i++){ const line=new THREE.Mesh(new THREE.BoxGeometry(HW*2,0.02,0.06), new THREE.MeshLambertMaterial({color:0xc9c1ac}));
+    line.position.set(0,0.01,i*2.2); g.add(line); }
+
+  // 유리 벽 4면
+  const wallBack=new THREE.Mesh(new THREE.PlaneGeometry(HW*2,HT), glassMat); wallBack.position.set(0,HT/2,-HD); g.add(wallBack);
+  const wallFront=new THREE.Mesh(new THREE.PlaneGeometry(HW*2,HT), glassMat); wallFront.position.set(0,HT/2,HD); g.add(wallFront);
+  const wallL=new THREE.Mesh(new THREE.PlaneGeometry(HD*2,HT), glassMat); wallL.rotation.y=Math.PI/2; wallL.position.set(-HW,HT/2,0); g.add(wallL);
+  const wallR=new THREE.Mesh(new THREE.PlaneGeometry(HD*2,HT), glassMat); wallR.rotation.y=Math.PI/2; wallR.position.set(HW,HT/2,0); g.add(wallR);
+  // 유리 천장
+  const roof=new THREE.Mesh(new THREE.PlaneGeometry(HW*2,HD*2), glassMat); roof.rotation.x=Math.PI/2; roof.position.set(0,HT,0); g.add(roof);
+
+  // 흰색 프레임 (기둥 4개 + 상단 보 4개 + 천장 십자보)
+  const post=()=>new THREE.Mesh(new THREE.BoxGeometry(0.16,HT,0.16), frameMat);
+  [[-HW,-HD],[HW,-HD],[-HW,HD],[HW,HD]].forEach(([x,z])=>{ const p=post(); p.position.set(x,HT/2,z); g.add(p); });
+  const beamX=()=>new THREE.Mesh(new THREE.BoxGeometry(HW*2,0.16,0.16), frameMat);
+  const beamZ=()=>new THREE.Mesh(new THREE.BoxGeometry(0.16,0.16,HD*2), frameMat);
+  [[-HD],[HD]].forEach(([z])=>{ const b=beamX(); b.position.set(0,HT,z); g.add(b); });
+  [[-HW],[HW]].forEach(([x])=>{ const b=beamZ(); b.position.set(x,HT,0); g.add(b); });
+  const ridge=beamX(); ridge.position.set(0,HT,0); g.add(ridge);
+
+  // 재배 벤치 (다리 + 상판 + 흙 트로프)
+  const woodMat=new THREE.MeshLambertMaterial({color:0xa9865c});
+  const benchTop=new THREE.Mesh(new THREE.BoxGeometry(5,0.16,2), woodMat); benchTop.position.set(0,0.9,0); g.add(benchTop);
+  [[-2.3,-0.8],[2.3,-0.8],[-2.3,0.8],[2.3,0.8]].forEach(([x,z])=>{ const leg=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.9,0.16), woodMat); leg.position.set(x,0.45,z); g.add(leg); });
+  const trough=new THREE.Mesh(new THREE.BoxGeometry(4.6,0.32,1.6), new THREE.MeshLambertMaterial({color:0x6f4c34})); trough.position.set(0,1.14,0); g.add(trough);
+
+  // LED 재배등 (빛나는 바 + 포인트 라이트)
+  const ledMat=new THREE.MeshBasicMaterial({color:0xffe6b8});
+  [-1,1].forEach(zx=>{
+    const bar=new THREE.Mesh(new THREE.BoxGeometry(4.4,0.12,0.28), ledMat); bar.position.set(0,3.3,zx*0.9); g.add(bar);
+    // 바를 천장에 매다는 줄
+    [-1.8,1.8].forEach(x=>{ const wire=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,1.7,4), frameMat); wire.position.set(x,4.15,zx*0.9); g.add(wire); });
+    const pl=new THREE.PointLight(0xffdca8,0.75,14); pl.position.set(0,3.15,zx*0.9); g.add(pl);
+  });
+
+  // 뒷벽 선반 + 화분들
+  const shelf=new THREE.Mesh(new THREE.BoxGeometry(8,0.14,0.8), woodMat); shelf.position.set(0,2.3,-HD+0.5); g.add(shelf);
+  const miniPot=(x,y,z,col)=>{ const grp=new THREE.Group();
+    const pot=new THREE.Mesh(new THREE.CylinderGeometry(0.2,0.15,0.3,10), new THREE.MeshLambertMaterial({color:0xc26a48})); pot.position.y=0.15; grp.add(pot);
+    const leaf=new THREE.Mesh(new THREE.SphereGeometry(0.24,8,8), new THREE.MeshLambertMaterial({color:col})); leaf.position.y=0.46; leaf.scale.y=0.8; grp.add(leaf);
+    grp.position.set(x,y,z); return grp; };
+  [-3,-1.5,0,1.5,3].forEach((x,i)=>{ g.add(miniPot(x,2.37,-HD+0.5,[0x6aa85a,0x5a9a4a,0x8ab86a,0x4f8a3a,0x79b06a][i])); });
+  // 바닥 화분 몇 개
+  g.add(miniPot(-4.6,0,-2, 0x5a9a4a)); g.add(miniPot(4.6,0,-2.6, 0x6aa85a)); g.add(miniPot(4.4,0,2.4, 0x79b06a));
+
+  // 작물 (벤치 흙 위, 성장에 따라 갱신)
+  const crop=new THREE.Group(); crop.position.set(0,1.3,0); g.add(crop);
+  return {group:g, crop};
+}
+
+/* ---------- 뷰 전환 ---------- */
+function set3DView(v){
+  three.view=v;
+  if(three.outside) three.outside.visible=(v==='outside');
+  if(three.inside)  three.inside.visible=(v==='inside');
+  const box=document.getElementById('viewToggle');
+  if(box) box.querySelectorAll('button').forEach(b=>b.classList.toggle('on', b.dataset.v===v));
+}
+
+/* ---------- 작물 성장 (양쪽 씬 동시 갱신) ---------- */
+function buildCrop(g){
+  if(!g) return;
+  while(g.children.length) g.remove(g.children[0]);
+  const d=simState.day; const c=SIM_CROPS[simState.crop]; const col=c.color;
+  const n = d<=3?1 : d<=10?2 : d<=17?3 : d<=25?4 : 5;   // 성장 단계 → 개체 수/크기
+  const h = 0.3 + (d/30)*1.6;
+  for(let i=0;i<n;i++){
+    const stem=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.08,h,6), new THREE.MeshLambertMaterial({color:0x4f8a3a}));
+    const x=(i-(n-1)/2)*0.9; stem.position.set(x,h/2,0); g.add(stem);
+    const leaf=new THREE.Mesh(new THREE.SphereGeometry(0.15+d/70,8,8), new THREE.MeshLambertMaterial({color:col}));
+    leaf.position.set(x,h,0); leaf.scale.set(1,0.7,1); g.add(leaf);
+    if(d>21){ const fruit=new THREE.Mesh(new THREE.SphereGeometry(0.12,8,8), new THREE.MeshLambertMaterial({color:d>25?0xe0533a:0xd9c74a}));
+      fruit.position.set(x+0.12,h-0.15,0.1); g.add(fruit); }
+  }
+}
+function update3DGrowth(){ if(!three.ready) return; buildCrop(three.cropOutside); buildCrop(three.cropInside); }
+function update3DCropColor(){ update3DGrowth(); }
+
+/* =============================================================
+   시작
+   ============================================================= */
+render('home');
+</script>
+</body>
+</html>
